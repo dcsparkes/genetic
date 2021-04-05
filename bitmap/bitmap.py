@@ -1,3 +1,134 @@
+def clipValue(value, lower=0, upper=255):
+    """
+    Limits input 'value' between minimum and maximum (inclusive) limits.
+
+    :param value: input
+    :param lower: lower bound
+    :param upper: upper bound
+    :return: value clipped to be within range.
+    """
+    return max(min(value, upper), lower)
+
+
+# Set of pattern functions
+def _patternBlank(dims, colours):
+    x, y = dims
+    if colours:
+        colour = colours[0]
+    else:
+        colour = 255  # default = white
+    return [[Pixel(colour) for j in range(x)] for i in range(y)]
+
+
+class Pixel:
+    """
+    Representation of a pixel as 24 bit RGB (for now).
+    Intent is to decouple pixel from resolution and encapsulate the colour conversions and bitwise crossover.
+    Resolution only matters when reading from an existing image or at write stage.
+    """
+
+    def __init__(self, colour=None, res=24):
+        """
+        Convert i
+
+        :param colour:
+        :param res: resolution of input colour, to allow scaling to 24 bit, if necessary
+        """
+        # self.rgb = None
+        self._paint(colour, res)
+
+    def __repr__(self):
+        return "{}(colour={})".format(self.__class__.__name__, self.rgb)
+
+    def __str__(self):
+        return self.rgb
+
+    @staticmethod
+    def _constructTupleFromNumber(value):
+        """
+        Take a single value and convert it into a 3-dimensional tone.  For YUV this would correspond to Y, while UV
+        would be zero.  For RGB assume all components are equal.
+        :param value:
+        :return:
+        """
+        return (clipValue(value),) * 3
+
+    @staticmethod
+    def _validateTuple(values):
+        """
+        Construct a valid 24-bit tuple from an existing tuple.  If the tuple is longer then 3 values, assume the
+        subsequent values are irrelevant (alpha channel for instance).
+
+        If the tuple is truncated, make the assumption that non-provided values are zero.  This might be better served
+        with an exception, particularly for RGB.  With other colour models it might make sense (YUV for instance).  On
+        the other hand pseudo-random outcomes are not exactly beyond the project brief.
+
+        :param values: tuple of values, ideally (R, B, G)
+        :return: tuple of values (R, B, G)
+        """
+        return tuple([clipValue(v) for v in (values + (0, 0, 0))[:3]])
+
+    def _paint(self, colour, res=24):
+        if colour is None:
+            colour = 255  # Default is white?
+
+        if type(colour) is int or type(colour) is float:
+            colour = int(colour)
+            if res == 16:
+                colour <<= 3
+            self.rgb = self._constructTupleFromNumber(colour)
+
+        elif type(colour) is tuple or type(colour) is list:
+            self.rgb = self._validateTuple(colour)
+
+        else:  # notable omissions are 'colours' of types bytes or bytearray, which may be particularly useful.
+            msg = "Color '{}' of type '{}' not supported.".format(colour, type(colour))
+            raise TypeError(msg)
+
+    def to_bytes(self, length, byteorder):
+        """
+        Convert the internal value into bits.
+
+        :param length: 2 = 16 bit, 3 = 24 bit
+        :param byteorder: in this context: 'big' = RGB, 'little' = BGR
+        :return:
+        """
+        shift = 0
+        components = []
+
+        if length == 2:  # 16-bit
+            if byteorder == 'big':
+                components = [x >> 3 for x in self.rgb]
+            elif byteorder == 'little':
+                components = [x >> 3 for x in self.rgb[::-1]]
+            else:
+                msg = "Unrecognised byteorder: '{}'.".format(byteorder)
+                raise ValueError(msg)
+            shift = 5
+
+        elif length == 3:  # 24-bit
+            if byteorder == 'big':
+                components = self.rgb[:]
+            elif byteorder == 'little':
+                components = self.rgb[::-1]
+                # print(self.rgb)
+                # print(components)
+            else:
+                msg = "Unrecognised byteorder: '{}'.".format(byteorder)
+                raise ValueError(msg)
+            shift = 8
+        else:
+            msg = "Unsupported length: '{}'.".format(length)
+            raise ValueError(msg)
+
+        retVal = 0
+        for c in components:
+            retVal <<= shift
+            retVal += c
+
+        return retVal.to_bytes(length, byteorder='big')
+
+
 class Bitmap:
     """
     http://www.ece.ualberta.ca/~elliott/ee552/studentAppNotes/2003_w/misc/bmp_file_format/bmp_file_format.htm
@@ -10,47 +141,26 @@ class Bitmap:
     RGB values are stored backwards i.e. BGR.
     """
 
-    def __init__(self, dims, res, pixels=None, fillFunc=None):
+    def __init__(self, dims, res, pixels=None, colours=None, fillFunc=_patternBlank):
         """
         :param dims: tuple of (x, y) dimensions in pixels
         :param res: bits per pixel
         :param pixels: list of pixels, None for self-generated
         """
         if res in [16, 24]:
-            self.res = res
+            self.res = res  # Refactoring should make this class variable disappear and be replaced in the write function.
         else:
             msg = "Invalid resolution: {}".format(res)
             raise ValueError(msg)
 
-        if not pixels:
-            x, y = dims
-            self.pixels = [[(0).to_bytes(res // 8, byteorder='little')] * x for i in range(y)]
-        else:
+        if pixels:
             self.pixels = pixels
-        self.dims = dims
-        if res in [16, 24]:
-            self.res = res
         else:
-            msg = "Invalid resolution: {}".format(res)
-            raise ValueError(msg)
+            self.pixels = fillFunc(dims, colours)
+            # x, y = dims
+            # self.pixels = [[(0).to_bytes(res // 8, byteorder='little')] * x for i in range(y)]
 
-    def _fillBlank(self, colour):
-
-    @staticmethod
-    def _isColourValid(rgb):
-        """
-        Assume colour fits in 24 bit RGB - check values are not too large (>255) or too small (<0).
-
-        :param rgb: An RGB triple
-        :return: True if valid, False if invalid
-        """
-
-        if len(rgb) is not 3:
-            return False
-        for value in rgb:
-            if not (0 <= value <= 255):
-                return False
-        return True
+        self.dims = dims
 
     @classmethod
     def fromFile(cls, fileName):
@@ -60,22 +170,9 @@ class Bitmap:
         pixels = None
         return cls(dims, res, pixels)
 
-    def blank(cls, dims, res=24, colour=None):
-        if colour is None:
-            pixel = (2 ** res - 1).to_bytes(res // 8, byteorder='little')
-        elif type(colour) is tuple:
-            if not self._isColourValid(colour):
-                msg = "Incompatible RGB value: {}".format(colour)
-                raise ValueError(msg)
-
-
-
-        elif type(colour) is bytes:
-
-            x, y = dims
-            self.pixels = [[(0)].to_bytes(res // 8, byteorder='little') * x for i in range(y)]
-
-        pass
+    @classmethod
+    def blank(cls, dims, res=24, colour=(255, 255, 255)):
+        return cls(dims, res, colours=[colour], fillFunc=_patternBlank)
 
     def createHeader(self, fileSize, reserved=0, offset=54):
         """
@@ -134,7 +231,7 @@ class Bitmap:
 
         return header
 
-    def write(self, filename):
+    def write(self, filename, res=24):
         """
         Each scan line is zero padded to the nearest 4-byte boundary. If the image has a width that is not divisible by
         four, say, 21 bytes, there would be 3 bytes of padding at the end of every scan line.
@@ -143,8 +240,7 @@ class Bitmap:
         """
         lineBytes = (self.dims[0] * self.res) // 8  # line size = pixels * bits per pixel
         paddingSize = -lineBytes % 4
-        imageStorageSize = (lineBytes + paddingSize) * self.dims[
-            1]  # Storage size = line size (bytes) * number of lines
+        imageStorageSize = (lineBytes + paddingSize) * self.dims[1]  # Storage size = line size (bytes) * no. of lines
         headerSize = 14 + 40
         fileSize = headerSize + imageStorageSize
         fileHeader = self.createHeader(fileSize)
@@ -157,5 +253,5 @@ class Bitmap:
             bmp.write(infoHeader)
             for line in self.pixels:
                 for pixel in line:
-                    bmp.write(pixel)
+                    bmp.write(pixel.to_bytes(res // 8, 'little'))
                 bmp.write(paddingBytes)
