@@ -141,20 +141,18 @@ class Bitmap:
     RGB values are stored backwards i.e. BGR.
     """
 
-    def __init__(self, dims, res, pixels=None, colours=None, fillFunc=_patternBlank):
+    def __init__(self, dims, pixels=None, colours=None, fillFunc=_patternBlank):
         """
         :param dims: tuple of (x, y) dimensions in pixels
-        :param res: bits per pixel
         :param pixels: list of pixels, None for self-generated
+        :param colours: 
+        :param fillFunc: function to genearate fill pattern.
         """
-        if res in [16, 24]:
-            self.res = res  # Refactoring should make this class variable disappear and be replaced in the write function.
-        else:
-            msg = "Invalid resolution: {}".format(res)
-            raise ValueError(msg)
-
         if pixels:
-            self.pixels = pixels
+            if type(pixels[0][0]) is Pixel:
+                self.pixels = pixels
+            else:
+                raise ValueError("pixels parameter requires 2D iterable of Pixels.")
         else:
             self.pixels = fillFunc(dims, colours)
             # x, y = dims
@@ -171,8 +169,8 @@ class Bitmap:
         return cls(dims, res, pixels)
 
     @classmethod
-    def blank(cls, dims, res=24, colour=(255, 255, 255)):
-        return cls(dims, res, colours=[colour], fillFunc=_patternBlank)
+    def blank(cls, dims, colour=(255, 255, 255)):
+        return cls(dims, colours=[colour], fillFunc=_patternBlank)
 
     def createHeader(self, fileSize, reserved=0, offset=54):
         """
@@ -190,7 +188,7 @@ class Bitmap:
 
         return bSignature + bFileSize + bReserved + bDataOffset
 
-    def createInfoHeader(self, offset=54, ppm=250):
+    def createInfoHeader(self, res=24, offset=54, ppm=250):
         """
         Create a BMP info header. (40 bytes)
         size - 4 bytes: Size of InfoHeader (=40)
@@ -221,12 +219,12 @@ class Bitmap:
         bWidth, bHeight = [i.to_bytes(4, byteorder='little') for i in self.dims]
         header += bWidth + bHeight
         header += (1).to_bytes(2, byteorder='little')  # planes
-        header += self.res.to_bytes(2, byteorder='little')  # bitsPerPixel
+        header += res.to_bytes(2, byteorder='little')  # bitsPerPixel
         header += (0).to_bytes(4, byteorder='little')  # compression not supported
         header += (0).to_bytes(4, byteorder='little')  # compression not supported: imagesize irrelevant
         header += ppm.to_bytes(4, byteorder='little')  # XpixelsPerM: use magic number?
         header += ppm.to_bytes(4, byteorder='little')  # YpixelsPerM: use magic number?
-        header += (2 ** self.res).to_bytes(4, byteorder='little')  # colors used... appears to be big byte order?
+        header += (2 ** res).to_bytes(4, byteorder='little')  # colors used... appears to be big byte order?
         header += (0).to_bytes(4, byteorder='little')  # Important Colors = all
 
         return header
@@ -238,13 +236,18 @@ class Bitmap:
 
         :return:
         """
-        lineBytes = (self.dims[0] * self.res) // 8  # line size = pixels * bits per pixel
+
+        if res not in [16, 24]:
+            msg = "Invalid resolution: {}".format(res)
+            raise ValueError(msg)
+
+        lineBytes = (self.dims[0] * res) // 8  # line size = pixels * bits per pixel
         paddingSize = -lineBytes % 4
         imageStorageSize = (lineBytes + paddingSize) * self.dims[1]  # Storage size = line size (bytes) * no. of lines
         headerSize = 14 + 40
         fileSize = headerSize + imageStorageSize
         fileHeader = self.createHeader(fileSize)
-        infoHeader = self.createInfoHeader()
+        infoHeader = self.createInfoHeader(res)
 
         paddingBytes = (0).to_bytes(1, 'little') * paddingSize
 
