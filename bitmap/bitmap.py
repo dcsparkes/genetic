@@ -11,13 +11,58 @@ def clipValue(value, lower=0, upper=255):
 
 
 # Set of pattern functions
-def _patternBlank(dims, colours):
+def _patternBlank(dims, colour):
     x, y = dims
-    if colours:
-        colour = colours[0]
-    else:
+    if not colour:
         colour = 255  # default = white
     return [[Pixel(colour) for j in range(x)] for i in range(y)]
+
+
+def _patternCheckerboard(dims, checksize, colour1=0, colour2=255):
+    pixels = []
+    x, y = dims
+    for j in range(y):
+        pixels.append([])
+        for i in range(x):
+            if ((i % (2 * checksize)) >= checksize) ^ ((j % (2 * checksize)) >= checksize):
+                pixels[-1].append(Pixel(colour1))
+            else:
+                pixels[-1].append(Pixel(colour2))
+    return pixels
+
+def _patternGradientFillHorizontal(dims, colour1=0, colour2=255):
+    pixels = []
+    x, y = dims
+
+    colourStart = Pixel(colour1).rgb
+    colourEnd = Pixel(colour2).rgb
+
+    for j in range(y):
+        pixels.append([])
+    for i in range(x):
+        colour = _rgbBlend(colourStart, colourEnd, i / x)
+        for row in pixels:
+            row.append(Pixel(colour))
+    return pixels
+
+
+def _patternGradientFillVertical(dims, colour1=0, colour2=255):
+    pixels = []
+    x, y = dims
+
+    colourStart = Pixel(colour1).rgb
+    colourEnd = Pixel(colour2).rgb
+
+    for j in range(y):
+        colour = _rgbBlend(colourStart, colourEnd, j / y)
+        pixels.append([])
+        for i in range(x):
+            pixels[-1].append(Pixel(colour))
+    return pixels
+
+
+def _rgbBlend(c1, c2, proportion):
+    return [round(a * (1 - proportion) + b * proportion) for a, b in zip(c1, c2)]
 
 
 class Pixel:
@@ -66,7 +111,7 @@ class Pixel:
         :param values: tuple of values, ideally (R, B, G)
         :return: tuple of values (R, B, G)
         """
-        return tuple([clipValue(v) for v in (values + (0, 0, 0))[:3]])
+        return tuple([clipValue(v) for v in (tuple(values) + (0, 0, 0))[:3]])
 
     def _paint(self, colour, res=24):
         if colour is None:
@@ -141,11 +186,11 @@ class Bitmap:
     RGB values are stored backwards i.e. BGR.
     """
 
-    def __init__(self, dims, pixels=None, colours=None, fillFunc=_patternBlank):
+    def __init__(self, dims, pixels=None, fillFunc=_patternBlank, fillParameters=None):
         """
         :param dims: tuple of (x, y) dimensions in pixels
         :param pixels: list of pixels, None for self-generated
-        :param colours: 
+        :param colours:
         :param fillFunc: function to genearate fill pattern.
         """
         if pixels:
@@ -153,8 +198,10 @@ class Bitmap:
                 self.pixels = pixels
             else:
                 raise ValueError("pixels parameter requires 2D iterable of Pixels.")
+        elif fillParameters is None:
+            self.pixels = fillFunc(dims, colour=255)
         else:
-            self.pixels = fillFunc(dims, colours)
+            self.pixels = fillFunc(dims, **fillParameters)
             # x, y = dims
             # self.pixels = [[(0).to_bytes(res // 8, byteorder='little')] * x for i in range(y)]
 
@@ -170,7 +217,34 @@ class Bitmap:
 
     @classmethod
     def blank(cls, dims, colour=(255, 255, 255)):
-        return cls(dims, colours=[colour], fillFunc=_patternBlank)
+        fillParameters = {"colour":colour}
+        return cls(dims, fillFunc=_patternBlank, fillParameters=fillParameters)
+
+    @classmethod
+    def checkerboard(cls, dims, checksize, colour1=(0, 0, 0), colour2=(255, 255, 255)):
+        fillParameters = {"checksize":checksize, "colour1":colour1, "colour2":colour2}
+        return cls(dims, fillFunc=_patternCheckerboard, fillParameters=fillParameters)
+
+    @classmethod
+    def gradient(cls, dims, angle=0, colour1=(0, 0, 0), colour2=(255, 255, 255)):
+        if not angle % 180:
+            func = _patternGradientFillVertical
+            if angle % 360:
+                colourA = colour1
+                colourB = colour2
+            else:
+                colourA = colour2
+                colourB = colour1
+        elif not angle % 90:
+            func = _patternGradientFillHorizontal
+            if angle % 270:
+                colourA = colour1
+                colourB = colour2
+            else:
+                colourA = colour2
+                colourB = colour1
+        fillParameters = {"colour1":colourA, "colour2":colourB}
+        return cls(dims, fillFunc=func, fillParameters=fillParameters)
 
     def createHeader(self, fileSize, reserved=0, offset=54):
         """

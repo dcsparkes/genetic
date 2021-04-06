@@ -161,5 +161,107 @@ class TestBitmap_128x128_24_blue(unittest.TestCase):
             signature = bmp.read(2)
         self.assertEqual(b'BM', signature)
 
+class TestBitmap_128x128_24_checkerboard_default(unittest.TestCase):
+    filename = "test_128x128_24_checkerboard_default"
+    bmp = bitmap.Bitmap.checkerboard((128, 128), checksize=16)
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_checkerboard_colours(unittest.TestCase):
+    filename = "test_128x128_24_checkerboard_colours"
+    bmp = bitmap.Bitmap.checkerboard((128, 128), checksize=16, colour1=(255, 255, 31), colour2=(128, 31, 128))
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient0__default(unittest.TestCase):
+    filename = "test_128x128_24_gradient0_default"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=0)
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient0_colours(unittest.TestCase):
+    filename = "test_128x128_24_gradient0_colours"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=0, colour1=(11, 31, 255), colour2=(129, 128, 15))
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient90__default(unittest.TestCase):
+    filename = "test_128x128_24_gradient90_default"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=90)
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient90_colours(unittest.TestCase):
+    filename = "test_128x128_24_gradient90_colours"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=90, colour1=(63, 0, 64), colour2=(224, 255, 128))
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient180__default(unittest.TestCase):
+    filename = "test_128x128_24_gradient180_default"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=180)
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient180_colours(unittest.TestCase):
+    filename = "test_128x128_24_gradient180_colours"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=180, colour1=(255, 0, 129), colour2=(255, 255, 15))
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient270__default(unittest.TestCase):
+    filename = "test_128x128_24_gradient270_default"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=270)
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+class TestBitmap_128x128_24_gradient270_colours(unittest.TestCase):
+    filename = "test_128x128_24_gradient270_colours"
+    bmp = bitmap.Bitmap.gradient((128, 128), angle=270, colour1=(221, 31, 192), colour2=(7, 96, 7))
+    bmp.write(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+
+
 if __name__ == '__main__':
     unittest.main()
