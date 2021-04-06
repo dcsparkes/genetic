@@ -141,29 +141,22 @@ class Pixel:
         shift = 0
         components = []
 
+        if byteorder not in ['little', 'big']:
+            msg = "Unrecognised byteorder: '{}'.".format(byteorder)
+            raise ValueError(msg)
+
         if length == 2:  # 16-bit
-            if byteorder == 'big':
+            if byteorder == 'little':
                 components = [x >> 3 for x in self.rgb]
-            elif byteorder == 'little':
+            elif byteorder == 'big':
                 components = [x >> 3 for x in self.rgb[::-1]]
-            else:
-                msg = "Unrecognised byteorder: '{}'.".format(byteorder)
-                raise ValueError(msg)
             shift = 5
 
         elif length == 3:  # 24-bit
-            if byteorder == 'big':
-                components = self.rgb[:]
-            elif byteorder == 'little':
-                components = self.rgb[::-1]
-                # print(self.rgb)
-                # print(components)
-            else:
-                msg = "Unrecognised byteorder: '{}'.".format(byteorder)
-                raise ValueError(msg)
+            components = self.rgb[:]
             shift = 8
         else:
-            msg = "Unsupported length: '{}'.".format(length)
+            msg = "Unsupported byte length: '{}'.".format(length)
             raise ValueError(msg)
 
         retVal = 0
@@ -171,7 +164,7 @@ class Pixel:
             retVal <<= shift
             retVal += c
 
-        return retVal.to_bytes(length, byteorder='big')
+        return retVal.to_bytes(length, byteorder=byteorder)
 
 
 class Bitmap:
@@ -226,15 +219,15 @@ class Bitmap:
         return cls(dims, fillFunc=_patternCheckerboard, fillParameters=fillParameters)
 
     @classmethod
-    def gradient(cls, dims, angle=0, colour1=(0, 0, 0), colour2=(255, 255, 255)):
+    def gradient(cls, dims, angle=0, colour1=(255, 255, 255), colour2=(0, 0, 0)):
         if not angle % 180:
             func = _patternGradientFillVertical
             if angle % 360:
-                colourA = colour1
-                colourB = colour2
-            else:
                 colourA = colour2
                 colourB = colour1
+            else:
+                colourA = colour1
+                colourB = colour2
         elif not angle % 90:
             func = _patternGradientFillHorizontal
             if angle % 270:
