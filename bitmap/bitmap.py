@@ -1,3 +1,6 @@
+import math
+
+
 def clipValue(value, lower=0, upper=255):
     """
     Limits input 'value' between minimum and maximum (inclusive) limits.
@@ -8,6 +11,174 @@ def clipValue(value, lower=0, upper=255):
     :return: value clipped to be within range.
     """
     return max(min(value, upper), lower)
+
+
+def unitVector(direction):
+    """
+    Calculate the unit vector: 0 = increasing x (or real), 90 = increasing y (or complex)
+    Questionable whether it should operate in degrees or radians or some hybrid (e.g. ints=degrees, floats=radians)
+    For now everything is in degrees.
+    Direction can take a number of forms:
+        Numbers (int, float) = angle
+        tuple, list, (iterable) = vector
+        Complex = 2D vector: treat accordingly
+    :param angle:
+    :return: tuple of coefficients (float)
+    """
+    if type(direction) is tuple or type(direction) is list:
+        length = _vectorLength(direction)
+        return [c / length for c in direction]
+    elif type(direction) is int or type(direction) is float:  # Number is angle in degrees
+        rad = math.radians(direction)
+        return (math.cos(rad), math.sin(rad))
+    elif type(direction) is complex:
+        return unitVector((direction.real, direction.imag))
+    # Check iterable?: https://stackoverflow.com/questions/1952464/in-python-how-do-i-determine-if-an-object-is-iterable
+    return None
+
+
+def _dotProduct(v1, v2):
+    """
+    Dot product of two vectors is the sum of the product of the corresponding cartesian coordinates
+    :param v1:
+    :param v2:
+    :return:
+    """
+    return sum([a * b for a, b in zip(v1, v2)])
+
+
+def _vectorAngle(v1, v2):
+    """
+    Calculate angle between two vectors.
+    :param v1:
+    :param v2:
+    :return:
+    """
+    return math.degrees(math.acos(_dotProduct(v1, v2) / (_vectorLength(v1) * _vectorLength(v2))))
+
+
+def _vectorLength(v):
+    """
+    Calculate length of vector using Pythagorus.
+    :param v: vector (iterable)
+    :return:
+    """
+    if type(v) is complex:
+        return _vectorLength((v.real, v.imag))
+    return math.sqrt(sum([i ** 2 for i in v]))
+
+
+def _radialIntersection(dims, angle):
+    """
+    :param dims: image dimensions as tuple
+    :param angle: 0 = +ve x-axis. 90 = +ve y-axis
+    :return: intersection point with a frame of a line drawn from the centre point at the given angle.
+    """
+    theta = angle % 360
+    xdim, ydim = dims
+    xmax = xdim - 1
+    ymax = ydim - 1
+    x = None
+    y = None
+    if 0 < theta < 180:  # angle uppish, intersection top half
+        rads = math.radians(theta - 90)
+        x = round((xmax - math.tan(rads) * ymax) / 2)
+        if 0 <= x <= xmax:
+            return (x, ymax)
+    elif 180 < theta:  # angle downish, origin bottom half
+        rads = math.radians(theta - 270)
+        x = round((xmax + math.tan(rads) * ymax) / 2)
+        if 0 <= x <= xmax:
+            return (x, 0)
+
+    if 90 < theta < 270:  # angle leftish, origin right half
+        rads = math.radians(theta - 180)
+        y = round((ymax - math.tan(rads) * xmax) / 2)
+        if 0 <= y <= ymax:
+            return (0, y)
+    elif 270 < theta or theta < 90:  # angle rightish, origin left half
+        rads = math.radians((theta + 90) % 360 - 90)
+        y = round((ymax + math.tan(rads) * xmax) / 2)
+        if 0 <= y <= ymax:
+            return (xmax, y)
+
+
+# def _origin(dims, angle):
+#     """
+#     :param dims: image dimensions as tuple
+#     :param angle: 0 = +ve x-axis. 90 = +ve y-axis
+#     :return:    intersection point with a frame of a line drawn from the centre point in the opposite direction.
+#                 Probably should rewrite function to just be an intersection calculator and then _call_ it with 180
+#                 degree shifted angle to find the 'origin'.
+#     """
+#     theta = angle % 360
+#     xdim, ydim = dims
+#     xmax = xdim - 1
+#     ymax = ydim - 1
+#     x = None
+#     y = None
+#
+#     if 0 < theta < 180:  # angle uppish, origin bottom half
+#         rads = math.radians(theta - 90)
+#         x = round((xmax + math.tan(rads) * ymax) / 2)
+#         if 0 <= x <= xmax:
+#             return (x, 0)
+#     elif 180 < theta:  # angle downish, origin top half
+#         rads = math.radians(theta - 270)
+#         x = round((xmax - math.tan(rads) * ymax) / 2)
+#         if 0 <= x <= xmax:
+#             return (x, ymax)
+#
+#     if 90 < theta < 270:  # angle leftish, origin right half
+#         rads = math.radians(theta - 180)
+#         y = round((ymax + math.tan(rads) * xmax) / 2)
+#         if 0 <= y <= ymax:
+#             return (xmax, y)
+#
+#     elif 270 < theta or theta < 90:  # angle rightish, origin left half
+#         rads = math.radians((theta + 90) % 360 - 90)
+#         y = round((ymax - math.tan(rads) * xmax) / 2)
+#         if 0 <= y <= ymax:
+#             return (0, y)
+#     ### Old code where north = +ve y, east = +ve x
+#     # if 0 < theta < 180:  # angle uppish, origin left half
+#     #     rads = math.radians(theta - 90)
+#     #     y = round((ymax + math.tan(rads) * xmax) / 2)
+#     #     if 0 <= y <= ymax:
+#     #         return (0, y)
+#     # elif 180 < theta:  # angle leftish, origin right half
+#     #     rads = math.radians(theta - 270)
+#     #     y = round((ymax - math.tan(rads) * xmax) / 2)
+#     #     if 0 <= y <= ymax:
+#     #         return (xmax, y)
+#     #
+#     # if 90 < theta < 270:  # angle bottomish, origin top half
+#     #     rads = math.radians(theta - 180)
+#     #     x = round((xmax + math.tan(rads) * ymax) / 2)
+#     #     if 0 <= x <= xmax:
+#     #         return (x, ymax)
+#     #
+#     # elif 270 < theta or theta < 90:  # angle uppish, origin bottom half
+#     #     rads = math.radians((theta + 90) % 360 - 90)
+#     #     x = round((xmax - math.tan(rads) * ymax) / 2)
+#     #     if 0 <= x <= xmax:
+#     #         return (x, 0)
+#     #
+#     # # This should never happen!
+#     # print ("_origin fell through")  # Implement logging, you muppet!
+#     # return _originUnsophisticated(dims, angle)
+
+# def _originUnsophisticated(dims, angle):
+#     theta = angle % 360
+#     if theta < 180:
+#         x = dims[0] - 1
+#     else:
+#         x = 0
+#     if 90 <= theta < 270:
+#         y = 0
+#     else:
+#         y = dims[1] - 1
+#     return (x, y)
 
 
 # Set of pattern functions
@@ -29,6 +200,7 @@ def _patternCheckerboard(dims, checksize, colour1=0, colour2=255):
             else:
                 pixels[-1].append(Pixel(colour2))
     return pixels
+
 
 def _patternGradientFillHorizontal(dims, colour1=0, colour2=255):
     pixels = []
@@ -61,15 +233,61 @@ def _patternGradientFillVertical(dims, colour1=0, colour2=255):
     return pixels
 
 
+def _patternStripe(dims, stripewidth, angle=0, colour1=0, colour2=255, interpolated=True):
+    pixels = []
+    vUnit = unitVector(angle)
+    origin = _radialIntersection(dims, angle - 180)
+
+    x, y = dims
+    for j in range(y):
+        pixels.append([])
+        for i in range(x):
+            if ((i % (2 * checksize)) >= checksize) ^ ((j % (2 * checksize)) >= checksize):
+                pixels[-1].append(Pixel(colour1))
+            else:
+                pixels[-1].append(Pixel(colour2))
+    return pixels
+
+
 def _rgbBlend(c1, c2, proportion):
-    return [round(a * (1 - proportion) + b * proportion) for a, b in zip(c1, c2)]
+    """
+    Blend with proportion: 0.0 = pure colour1, 1.0 = pure colour2
+    :param c1: colour1
+    :param c2: colour2
+    :return: blended colour
+    """
+    prop = clipValue(proportion, lower=0.0, upper=1.0)
+    return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
+
+
+def _normaliseProportions(proportionss, count=2):
+    props = tuple(proportionss[:count])
+    total = sum(props)
+    icount = len(props)
+    if count > icount:
+        remainder = max(0, (1 - total) / (count - icount))
+        props = tuple(props) + (remainder,) * (count - icount)
+        total = sum(props)  # recalculate total, should be >= 1
+
+    return [p / total for p in props]
+
+
+def _rgbBlend2(cs, proportions):
+    """
+    Blend with proportion: 0.0 = pure colour1, 1.0 = pure colour2
+    :param c1: colour1
+    :param c2: colour2
+    :return: blended colour
+    """
+    prop = clipValue(proportion, lower=0.0, upper=1.0)
+    return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
 
 
 class Pixel:
     """
     Representation of a pixel as 24 bit RGB (for now).
     Intent is to decouple pixel from resolution and encapsulate the colour conversions and bitwise crossover.
-    Resolution only matters when reading from an existing image or at write stage.
+    Resolution only matters when reading from an existing image or at writeBMP stage.
     """
 
     def __init__(self, colour=None, res=24):
@@ -210,12 +428,12 @@ class Bitmap:
 
     @classmethod
     def blank(cls, dims, colour=(255, 255, 255)):
-        fillParameters = {"colour":colour}
+        fillParameters = {"colour": colour}
         return cls(dims, fillFunc=_patternBlank, fillParameters=fillParameters)
 
     @classmethod
     def checkerboard(cls, dims, checksize, colour1=(0, 0, 0), colour2=(255, 255, 255)):
-        fillParameters = {"checksize":checksize, "colour1":colour1, "colour2":colour2}
+        fillParameters = {"checksize": checksize, "colour1": colour1, "colour2": colour2}
         return cls(dims, fillFunc=_patternCheckerboard, fillParameters=fillParameters)
 
     @classmethod
@@ -236,7 +454,7 @@ class Bitmap:
             else:
                 colourA = colour2
                 colourB = colour1
-        fillParameters = {"colour1":colourA, "colour2":colourB}
+        fillParameters = {"colour1": colourA, "colour2": colourB}
         return cls(dims, fillFunc=func, fillParameters=fillParameters)
 
     def createHeader(self, fileSize, reserved=0, offset=54):
@@ -296,7 +514,7 @@ class Bitmap:
 
         return header
 
-    def write(self, filename, res=24):
+    def writeBMP(self, filename, res=24):
         """
         Each scan line is zero padded to the nearest 4-byte boundary. If the image has a width that is not divisible by
         four, say, 21 bytes, there would be 3 bytes of padding at the end of every scan line.
@@ -325,3 +543,6 @@ class Bitmap:
                 for pixel in line:
                     bmp.write(pixel.to_bytes(res // 8, 'little'))
                 bmp.write(paddingBytes)
+
+    def writeJPEG(self, filename):
+        pass
