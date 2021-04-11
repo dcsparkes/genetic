@@ -1,184 +1,15 @@
-import math
+from vector import vector
 
 
 def clipValue(value, lower=0, upper=255):
     """
     Limits input 'value' between minimum and maximum (inclusive) limits.
-
     :param value: input
     :param lower: lower bound
     :param upper: upper bound
     :return: value clipped to be within range.
     """
     return max(min(value, upper), lower)
-
-
-def unitVector(direction):
-    """
-    Calculate the unit vector: 0 = increasing x (or real), 90 = increasing y (or complex)
-    Questionable whether it should operate in degrees or radians or some hybrid (e.g. ints=degrees, floats=radians)
-    For now everything is in degrees.
-    Direction can take a number of forms:
-        Numbers (int, float) = angle
-        tuple, list, (iterable) = vector
-        Complex = 2D vector: treat accordingly
-    :param angle:
-    :return: tuple of coefficients (float)
-    """
-    if type(direction) is tuple or type(direction) is list:
-        length = _vectorLength(direction)
-        return [c / length for c in direction]
-    elif type(direction) is int or type(direction) is float:  # Number is angle in degrees
-        rad = math.radians(direction)
-        return (math.cos(rad), math.sin(rad))
-    elif type(direction) is complex:
-        return unitVector((direction.real, direction.imag))
-    # Check iterable?: https://stackoverflow.com/questions/1952464/in-python-how-do-i-determine-if-an-object-is-iterable
-    return None
-
-
-def _dotProduct(v1, v2):
-    """
-    Dot product of two vectors is the sum of the product of the corresponding cartesian coordinates
-    :param v1:
-    :param v2:
-    :return:
-    """
-    return sum([a * b for a, b in zip(v1, v2)])
-
-
-def _vectorAngle(v1, v2):
-    """
-    Calculate angle between two vectors.
-    :param v1:
-    :param v2:
-    :return:
-    """
-    return math.degrees(math.acos(_dotProduct(v1, v2) / (_vectorLength(v1) * _vectorLength(v2))))
-
-
-def _vectorLength(v):
-    """
-    Calculate length of vector using Pythagorus.
-    :param v: vector (iterable)
-    :return:
-    """
-    if type(v) is complex:
-        return _vectorLength((v.real, v.imag))
-    return math.sqrt(sum([i ** 2 for i in v]))
-
-
-def _radialIntersection(dims, angle):
-    """
-    :param dims: image dimensions as tuple
-    :param angle: 0 = +ve x-axis. 90 = +ve y-axis
-    :return: intersection point with a frame of a line drawn from the centre point at the given angle.
-    """
-    theta = angle % 360
-    xdim, ydim = dims
-    xmax = xdim - 1
-    ymax = ydim - 1
-    x = None
-    y = None
-    if 0 < theta < 180:  # angle uppish, intersection top half
-        rads = math.radians(theta - 90)
-        x = round((xmax - math.tan(rads) * ymax) / 2)
-        if 0 <= x <= xmax:
-            return (x, ymax)
-    elif 180 < theta:  # angle downish, origin bottom half
-        rads = math.radians(theta - 270)
-        x = round((xmax + math.tan(rads) * ymax) / 2)
-        if 0 <= x <= xmax:
-            return (x, 0)
-
-    if 90 < theta < 270:  # angle leftish, origin right half
-        rads = math.radians(theta - 180)
-        y = round((ymax - math.tan(rads) * xmax) / 2)
-        if 0 <= y <= ymax:
-            return (0, y)
-    elif 270 < theta or theta < 90:  # angle rightish, origin left half
-        rads = math.radians((theta + 90) % 360 - 90)
-        y = round((ymax + math.tan(rads) * xmax) / 2)
-        if 0 <= y <= ymax:
-            return (xmax, y)
-
-
-# def _origin(dims, angle):
-#     """
-#     :param dims: image dimensions as tuple
-#     :param angle: 0 = +ve x-axis. 90 = +ve y-axis
-#     :return:    intersection point with a frame of a line drawn from the centre point in the opposite direction.
-#                 Probably should rewrite function to just be an intersection calculator and then _call_ it with 180
-#                 degree shifted angle to find the 'origin'.
-#     """
-#     theta = angle % 360
-#     xdim, ydim = dims
-#     xmax = xdim - 1
-#     ymax = ydim - 1
-#     x = None
-#     y = None
-#
-#     if 0 < theta < 180:  # angle uppish, origin bottom half
-#         rads = math.radians(theta - 90)
-#         x = round((xmax + math.tan(rads) * ymax) / 2)
-#         if 0 <= x <= xmax:
-#             return (x, 0)
-#     elif 180 < theta:  # angle downish, origin top half
-#         rads = math.radians(theta - 270)
-#         x = round((xmax - math.tan(rads) * ymax) / 2)
-#         if 0 <= x <= xmax:
-#             return (x, ymax)
-#
-#     if 90 < theta < 270:  # angle leftish, origin right half
-#         rads = math.radians(theta - 180)
-#         y = round((ymax + math.tan(rads) * xmax) / 2)
-#         if 0 <= y <= ymax:
-#             return (xmax, y)
-#
-#     elif 270 < theta or theta < 90:  # angle rightish, origin left half
-#         rads = math.radians((theta + 90) % 360 - 90)
-#         y = round((ymax - math.tan(rads) * xmax) / 2)
-#         if 0 <= y <= ymax:
-#             return (0, y)
-#     ### Old code where north = +ve y, east = +ve x
-#     # if 0 < theta < 180:  # angle uppish, origin left half
-#     #     rads = math.radians(theta - 90)
-#     #     y = round((ymax + math.tan(rads) * xmax) / 2)
-#     #     if 0 <= y <= ymax:
-#     #         return (0, y)
-#     # elif 180 < theta:  # angle leftish, origin right half
-#     #     rads = math.radians(theta - 270)
-#     #     y = round((ymax - math.tan(rads) * xmax) / 2)
-#     #     if 0 <= y <= ymax:
-#     #         return (xmax, y)
-#     #
-#     # if 90 < theta < 270:  # angle bottomish, origin top half
-#     #     rads = math.radians(theta - 180)
-#     #     x = round((xmax + math.tan(rads) * ymax) / 2)
-#     #     if 0 <= x <= xmax:
-#     #         return (x, ymax)
-#     #
-#     # elif 270 < theta or theta < 90:  # angle uppish, origin bottom half
-#     #     rads = math.radians((theta + 90) % 360 - 90)
-#     #     x = round((xmax - math.tan(rads) * ymax) / 2)
-#     #     if 0 <= x <= xmax:
-#     #         return (x, 0)
-#     #
-#     # # This should never happen!
-#     # print ("_origin fell through")  # Implement logging, you muppet!
-#     # return _originUnsophisticated(dims, angle)
-
-# def _originUnsophisticated(dims, angle):
-#     theta = angle % 360
-#     if theta < 180:
-#         x = dims[0] - 1
-#     else:
-#         x = 0
-#     if 90 <= theta < 270:
-#         y = 0
-#     else:
-#         y = dims[1] - 1
-#     return (x, y)
 
 
 # Set of pattern functions
@@ -199,6 +30,24 @@ def _patternCheckerboard(dims, checksize, colour1=0, colour2=255):
                 pixels[-1].append(Pixel(colour1))
             else:
                 pixels[-1].append(Pixel(colour2))
+    return pixels
+
+
+def _patternGradient(dims, angle=45, colour1=0, colour2=255):
+    pixels = []
+    vUnit = vector.Vector2D.unit(angle)
+    vOrigin = vector.Vector(vector.radialIntersection(dims, angle - 180))
+    vTerminus = vector.Vector(vector.radialIntersection(dims, angle))
+    distanceTotal = (vTerminus - vOrigin).magnitude()
+
+    x, y = dims
+    for n in range(y):
+        pixels.append([])
+        for m in range(x):
+            vPosition = vector.Vector2D([m, n]) - vOrigin
+            distanceAlongDirection = vector._dotProduct(vPosition, vUnit)
+            colour = _rgbBlend(colour1, colour2, distanceAlongDirection / distanceTotal)
+            pixels[-1].append(Pixel(colour))
     return pixels
 
 
@@ -233,19 +82,29 @@ def _patternGradientFillVertical(dims, colour1=0, colour2=255):
     return pixels
 
 
-def _patternStripe(dims, stripewidth, angle=0, colour1=0, colour2=255, interpolated=True):
+def _patternStripe(dims, stripewidth, angle=45, colour1=0, colour2=255, interpolated=True):
     pixels = []
-    vUnit = unitVector(angle)
-    origin = _radialIntersection(dims, angle - 180)
+    vUnit = vector.Vector2D.unit(angle)
+    vOrigin = vector.Vector(vector.radialIntersection(dims, angle - 180))
+    print("{}: {}".format(vUnit, vOrigin))
 
     x, y = dims
-    for j in range(y):
+    for n in range(y):
         pixels.append([])
-        for i in range(x):
-            if ((i % (2 * checksize)) >= checksize) ^ ((j % (2 * checksize)) >= checksize):
-                pixels[-1].append(Pixel(colour1))
-            else:
+        for m in range(x):
+            vPosition = vector.Vector2D([m, n]) - vOrigin
+            distanceAlongDirection = vector._dotProduct(vPosition, vUnit)
+            moddedDistance = distanceAlongDirection % (2 * stripewidth)
+            if interpolated and moddedDistance < 1:
+                c = _rgbBlend(colour2, colour1, moddedDistance)
+                pixels[-1].append(Pixel(c))
+            elif interpolated and stripewidth < moddedDistance < stripewidth + 1:
+                c = _rgbBlend(colour1, colour2, moddedDistance - stripewidth)
+                pixels[-1].append(Pixel(c))
+            elif moddedDistance >= stripewidth:
                 pixels[-1].append(Pixel(colour2))
+            else:
+                pixels[-1].append(Pixel(colour1))
     return pixels
 
 
@@ -374,7 +233,7 @@ class Pixel:
             components = self.rgb[:]
             shift = 8
         else:
-            msg = "Unsupported byte length: '{}'.".format(length)
+            msg = "Unsupported byte magnitude: '{}'.".format(length)
             raise ValueError(msg)
 
         retVal = 0
@@ -438,24 +297,14 @@ class Bitmap:
 
     @classmethod
     def gradient(cls, dims, angle=0, colour1=(255, 255, 255), colour2=(0, 0, 0)):
-        if not angle % 180:
-            func = _patternGradientFillVertical
-            if angle % 360:
-                colourA = colour2
-                colourB = colour1
-            else:
-                colourA = colour1
-                colourB = colour2
-        elif not angle % 90:
-            func = _patternGradientFillHorizontal
-            if angle % 270:
-                colourA = colour1
-                colourB = colour2
-            else:
-                colourA = colour2
-                colourB = colour1
-        fillParameters = {"colour1": colourA, "colour2": colourB}
-        return cls(dims, fillFunc=func, fillParameters=fillParameters)
+        fillParameters = {"angle": angle, "colour1": colour1, "colour2": colour2}
+        return cls(dims, fillFunc=_patternGradient, fillParameters=fillParameters)
+
+    @classmethod
+    def stripes(cls, dims, angle=45, stripewidth=4, colour1=(255, 255, 255), colour2=(0, 0, 0), interpolated=True):
+        fillParameters = {"colour1": colour1, "colour2": colour2, "angle": angle, "interpolated": interpolated,
+                          "stripewidth": stripewidth}
+        return cls(dims, fillFunc=_patternStripe, fillParameters=fillParameters)
 
     def createHeader(self, fileSize, reserved=0, offset=54):
         """
