@@ -13,5 +13,5 @@ def calculateExpected(probability, places):
 
 
 if __name__ == '__main__':
-    print("Expected excerpt length = {} pixels".format(calculateExpected(0.0001, 18)))
+    print("Expected excerpt length = {} pixels".format(calculateExpected(1/3, 18)))
 

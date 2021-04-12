@@ -8,6 +8,9 @@ import unittest
 
 
 class TestHelperFunctions(unittest.TestCase):
+    """
+    Some of these helper functions may be deprecated or withdrawn as they become part of the Vector class hierarchy.
+    """
     def test_dotProduct_directionalVectors_arbitrary_horizontal(self):
         vHorizontal = vector.unitVector(0)
         vsTest = [(a, b) for a in range(-5, 6) for b in range(-5, 6) if a or b]  # No zero magnitude vectors
@@ -27,8 +30,6 @@ class TestHelperFunctions(unittest.TestCase):
         vsTest = [(a, b) for a in range(-5, 6) for b in range(-5, 6) if a or b]  # No zero magnitude vectors
         lengths = [round(vector._vectorLength(v), places) for v in vsTest]
         distances = [round(vector.dotProduct(vector.unitVector(v), v), places) for v in vsTest]
-        # for i in range(len(vsTest)):
-        #     print("v: {}: l: {}: vu: {}: ".format(vsTest[i], lengths[i], vsUnit[i]))
         self.assertEqual(lengths, distances)
 
     def test_dotProduct_directionalVectors_triangle345(self):
@@ -246,12 +247,35 @@ class TestHelperFunctions(unittest.TestCase):
             self.assertAlmostEqual(1.0, vector._vectorLength(v), msg=v)
 
 
+class TestVector2D(unittest.TestCase):
+    def test_dotProduct_mul_directionalVectors_arbitrary_horizontal(self):
+        vHorizontal = vector.Vector2D.unit(0)
+        coeffs = [(a, b) for a in range(-5, 6) for b in range(-5, 6) if a or b]  # No zero magnitude vectors
+        vsTest = [vector.Vector2D(coefficients=cs) for cs in coeffs]
+        xs = [a for a, b in coeffs]
+        distances = [round(v * vHorizontal) for v in vsTest]
+        self.assertEqual(xs, distances)
 
-class TestVector(unittest.TestCase):
-    def test_vectorLength_unitVectors(self):
+    def test_dotProduct_mul_directionalVectors_arbitrary_vertical(self):
+        vVertical = vector.Vector2D.unit(90)
+        coeffs = [(a, b) for a in range(-5, 6) for b in range(-5, 6) if a or b]  # No zero magnitude vectors
+        vsTest = [vector.Vector2D(coefficients=cs) for cs in coeffs]
+        ys = [b for a, b in coeffs]
+        distances = [round(v * vVertical) for v in vsTest]
+        self.assertEqual(ys, distances)
+
+    def test_dotProduct_mul_directionalVectors_arbitrary_directional(self):
+        places = 3
+        coeffs = [(a, b) for a in range(-5, 6) for b in range(-5, 6) if a or b]  # No zero magnitude vectors
+        vsTest = [vector.Vector2D(coefficients=cs) for cs in coeffs]
+        lengths = [round(v.magnitude(), places) for v in vsTest]
+        distances = [round(v * vector.Vector2D.unit(v), places) for v in vsTest]
+        self.assertEqual(lengths, distances)
+
+    def test_magnitude_unitVectors(self):
         for theta in range(-180, 180):
-            v = bitmap.Vector.unit(theta)
-            self.assertAlmostEqual(1.0, v.magnitude(v), msg=v)
+            v = vector.Vector.unit(theta)
+            self.assertAlmostEqual(1.0, v.magnitude(), msg=v)
 
     def test_vectorLength_345(self):
         v = (3, 4)
@@ -261,10 +285,21 @@ class TestVector(unittest.TestCase):
         v = (4, 3)
         self.assertEqual(5, vector._vectorLength(v))
 
-    def test_vectorLength_unitVectors(self):
+    def test_polar_magnitude_unitVectors(self):
         for theta in range(-180, 180):
-            v = vector.unitVector(theta)
-            self.assertAlmostEqual(1.0, vector._vectorLength(v), msg=v)
+            v = vector.Vector2D.unit(theta)
+            self.assertAlmostEqual(1.0, v.polar()[0], msg=theta)
+
+    def test_phaseAngle(self):
+        for theta in range(-180, 180):
+            vTest = vector.Vector2D.unit(theta)
+            self.assertAlmostEqual(theta, math.degrees(vTest.phaseAngle()))
+
+    def test_magnitude_vs_polar(self):
+        vsTest = [vector.Vector2D((a, b)) for a in range(-5, 6) for b in range(-5, 6) if a or b]  # No zero magnitude vectors
+        for v in vsTest:
+            self.assertAlmostEqual(v.magnitude(), v.polar()[0])
+
 
 if __name__ == '__main__':
     unittest.main()

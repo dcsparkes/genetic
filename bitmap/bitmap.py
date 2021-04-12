@@ -27,17 +27,117 @@ def _patternCheckerboard(dims, checksize, colour1=0, colour2=255):
     return pixels
 
 
-def _patternDiamond(dims, checksize, colour1=0, colour2=255):
+def _diamondSizes(sizeInfo):
+    """
+    Calculate the sizes for the tessellated parallelogram pattern.  Default to equidistant if second size is not
+    provided.
+
+    :param sizeInfo: size information
+    :return: tuple pair of sizes.
+    """
+    sizes = []
+
+    if type(sizeInfo) is int or type(sizeInfo) is float:
+        sizes.append(sizeInfo)
+    elif sizeInfo is not None:
+        sizes = sizeInfo[:2]
+
+    if not len(sizes):
+        sizes.append(7)  # arbitrary magic number
+    if len(sizes) == 1:
+        sizes.append(sizes[0])
+    return sizes
+
+
+def _diamondVectors(angleInfo):
+    """
+    Calculate the unit vectors for the tessellated parallelogram pattern.  Default to orthogonal if second angle is not
+    provided.
+
+    :param angleInfo: angle information
+    :return: tuple pair of 2D Vectors.
+    """
+    angs = []
+
+    if type(angleInfo) is int or type(angleInfo) is float:
+        angs.append(angleInfo)
+    elif angleInfo is not None:
+        angs = angleInfo[:2]
+
+    if not len(angs):
+        angs.append(0)
+    if len(angs) == 1:
+        angs.append(angs[0] + 90)
+    return [vector.Vector2D.unit(a) for a in angs]
+
+
+def _patternDiamonds(dims, angles=None, sizes=None, colour1=(0, 0, 0), colour2=(255, 255, 255)):
     pixels = []
+    vUnitH, vUnitV = _diamondVectors(angles)
+    sizeH, sizeV = _diamondSizes(sizes)
+    vOrigin = vector.Vector(vector.radialIntersection(dims, vUnitH.phaseAngle()))
+
     x, y = dims
-    for j in range(y):
+    for n in range(y):
         pixels.append([])
-        for i in range(x):
-            if ((i % (2 * checksize)) >= checksize) ^ ((j % (2 * checksize)) >= checksize):
-                pixels[-1].append(Pixel(colour1))
+        for m in range(x):
+            vPosition = vector.Vector2D([m, n]) - vOrigin
+
+            distanceAlongHorizontal = vector.dotProduct(vPosition, vUnitH)
+            distanceAlongVertical = vector.dotProduct(vPosition, vUnitV)
+            distThroughPatternHorizontal = distanceAlongHorizontal % (2 * sizeH)
+            distThroughPatternVertical = distanceAlongVertical % (2 * sizeV)
+
+            if (distThroughPatternHorizontal < sizeH) ^ (distThroughPatternVertical >= sizeV):
+                baseColour = colour1
+                mixColour = colour2
             else:
-                pixels[-1].append(Pixel(colour2))
+                baseColour = colour2
+                mixColour = colour1
+
+            mixRateH = [1]
+            if distThroughPatternHorizontal < 1:
+                mixRateH = [1 - distThroughPatternHorizontal, distThroughPatternHorizontal]
+            elif sizeH < distThroughPatternHorizontal < sizeH + 1:
+                distIntoNextColour = distThroughPatternHorizontal - sizeH
+                mixRateH = [1 - distIntoNextColour, distIntoNextColour]
+
+            mixRateV = [1]
+            if distThroughPatternVertical < 1:
+                mixRateV = [1 - distThroughPatternVertical, distThroughPatternVertical]
+            elif sizeV < distThroughPatternVertical < sizeV + 1:
+                distIntoNextColour = distThroughPatternVertical - sizeV
+                mixRateV = [1 - distIntoNextColour, distIntoNextColour]
+
+            # First implementation : Mix proportions as if diamonds are square: this might make points ill-defined!
+            # Probably should add some kind of cos theta element.
+            proportions = [pH * pV for pH in mixRateH for pV in mixRateV]
+
+            # print("{} = {}".format(proportions, sum(proportions)))
+            if len(proportions) == 1:
+                c = baseColour
+            if len(proportions) == 2:
+                c = _rgbBlend(baseColour, mixColour, proportions[0])
+            if len(proportions) == 4:
+                c = _rgbBlend(baseColour, mixColour, proportions[0] + proportions[3])
+            pixels[-1].append(Pixel(c))
     return pixels
+
+
+def _patternDiamonds2(dims, angles=(0, 90), sizes=(7, 7), colour1=(0, 0, 0), colour2=(255, 255, 255)):
+    p = Pixel(1)
+    stripeDensities = [[p.rgb[0] for row in _patternStripe(dims, stripewidth=sizes[i], angle=angles[i],
+                                                           colour1=(0, 0, 0), colour2=(255, 255, 255))
+                        for p in row] for i in range(2)]
+
+    pixels = [Pixel(_rgbBlend(colour1, colour2, abs(a - b) / 255)) for a, b in zip(*stripeDensities)]
+
+    rows = []
+    while pixels:
+        row = pixels[:dims[0]]
+        rows.append(row)
+        pixels = pixels[dims[0]:]
+    return rows
 
 
 def _patternGaussian(dims, colour=(0, 0, 0), mus=None, sigmas=None, delta=1, terminal=255):
@@ -106,18 +206,42 @@ def _patternStripe(dims, stripewidth, angle=45, colour1=0, colour2=255, interpol
         for m in range(x):
             vPosition = vector.Vector2D([m, n]) - vOrigin
             distanceAlongDirection = vector.dotProduct(vPosition, vUnit)
-            moddedDistance = distanceAlongDirection % (2 * stripewidth)
-            if interpolated and moddedDistance < 1:
-                c = _rgbBlend(colour2, colour1, moddedDistance)
-                pixels[-1].append(Pixel(c))
-            elif interpolated and stripewidth < moddedDistance < stripewidth + 1:
-                c = _rgbBlend(colour1, colour2, moddedDistance - stripewidth)
-                pixels[-1].append(Pixel(c))
-            elif moddedDistance >= stripewidth:
-                pixels[-1].append(Pixel(colour2))
+            distancethroughPattern = distanceAlongDirection % (2 * stripewidth)
+            if interpolated and distancethroughPattern < 1:
+                c = _rgbBlend(colour2, colour1, distancethroughPattern)
+            elif interpolated and stripewidth - 1 < distancethroughPattern < stripewidth:
+                c = _rgbBlend(colour2, colour1, stripewidth - distancethroughPattern)
+            elif distancethroughPattern >= stripewidth:
+                c = colour2
             else:
-                pixels[-1].append(Pixel(colour1))
+                c = colour1
+            pixels[-1].append(Pixel(c))
     return pixels
+
+
+def _patternStripeHorizontal(dims, stripewidth, colour1=(0, 0, 0), colour2=(255, 255, 255)):
+    xmax, ymax = dims
+    pixels = []
+    for n in range(ymax):
+        pixels.append([])
+        distancethroughPattern = n % (stripewidth * 2)
+        if distancethroughPattern < 1:
+            c = _rgbBlend(colour1, colour2, distancethroughPattern)
+        elif stripewidth - 1 < distancethroughPattern < stripewidth:
+            c = _rgbBlend(colour2, colour1, distancethroughPattern + 1 - stripewidth)
+        elif distancethroughPattern >= stripewidth:
+            c = colour2
+        else:
+            c = colour1
+        print("row: {}, colour:{}".format(n, c))
+        for m in range(xmax):
+            pixels[-1].append(Pixel(c))
+    return pixels
+
+
+def _patternStripeVertical(dims, stripewidth, colour1=(0, 0, 0), colour2=(255, 255, 255)):
+    xmax, ymax = dims
+    return list(zip(*_patternStripeHorizontal((ymax, xmax), stripewidth, colour1=colour1, colour2=colour2)))
 
 
 def _rgbBlend(c1, c2, proportion):
@@ -152,107 +276,6 @@ def _normaliseProportions(proportionss, count=2):
 #     """
 #     prop = shared.clipValue(proportion, lower=0.0, upper=1.0)
 #     return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
-
-
-class Pixel:
-    """
-    Representation of a pixel as 24 bit RGB (for now).
-    Intent is to decouple pixel from resolution and encapsulate the colour conversions and bitwise crossover.
-    Resolution only matters when reading from an existing image or at writeBMP stage.
-    """
-
-    def __init__(self, colour=None, res=24):
-        """
-        Convert i
-
-        :param colour:
-        :param res: resolution of input colour, to allow scaling to 24 bit, if necessary
-        """
-        # self.rgb = None
-        self._paint(colour, res)
-
-    def __repr__(self):
-        return "{}(colour={})".format(self.__class__.__name__, self.rgb)
-
-    def __str__(self):
-        return self.rgb
-
-    @staticmethod
-    def _constructTupleFromNumber(value):
-        """
-        Take a single value and convert it into a 3-dimensional tone.  For YUV this would correspond to Y, while UV
-        would be zero.  For RGB assume all components are equal.
-        :param value:
-        :return:
-        """
-        return (shared.clipValue(value),) * 3
-
-    @staticmethod
-    def _validateTuple(values):
-        """
-        Construct a valid 24-bit tuple from an existing tuple.  If the tuple is longer then 3 values, assume the
-        subsequent values are irrelevant (alpha channel for instance).
-
-        If the tuple is truncated, make the assumption that non-provided values are zero.  This might be better served
-        with an exception, particularly for RGB.  With other colour models it might make sense (YUV for instance).  On
-        the other hand pseudo-random outcomes are not exactly beyond the project brief.
-
-        :param values: tuple of values, ideally (R, B, G)
-        :return: tuple of values (R, B, G)
-        """
-        return tuple([shared.clipValue(v) for v in (tuple(values) + (0, 0, 0))[:3]])
-
-    def _paint(self, colour, res=24):
-        if colour is None:
-            colour = 255  # Default is white?
-
-        if type(colour) is int or type(colour) is float:
-            colour = int(colour)
-            if res == 16:
-                colour <<= 3
-            self.rgb = self._constructTupleFromNumber(colour)
-
-        elif type(colour) is tuple or type(colour) is list:
-            self.rgb = self._validateTuple(colour)
-
-        else:  # notable omissions are 'colours' of types bytes or bytearray, which may be particularly useful.
-            msg = "Color '{}' of type '{}' not supported.".format(colour, type(colour))
-            raise TypeError(msg)
-
-    def to_bytes(self, length, byteorder):
-        """
-        Convert the internal value into bits.
-
-        :param length: 2 = 16 bit, 3 = 24 bit
-        :param byteorder: in this context: 'big' = RGB, 'little' = BGR
-        :return:
-        """
-        components = []
-
-        if byteorder not in ['little', 'big']:
-            msg = "Unrecognised byteorder: '{}'.".format(byteorder)
-            raise ValueError(msg)
-
-        if length == 2:  # 16-bit
-            if byteorder == 'little':
-                components = [x >> 3 for x in self.rgb]
-            elif byteorder == 'big':
-                components = [x >> 3 for x in self.rgb[::-1]]
-            shift = 5
-
-        elif length == 3:  # 24-bit
-            components = self.rgb[:]
-            shift = 8
-        else:
-            msg = "Unsupported byte magnitude: '{}'.".format(length)
-            raise ValueError(msg)
-
-        retVal = 0
-        for c in components:
-            retVal <<= shift
-            retVal += c
-
-        return retVal.to_bytes(length, byteorder=byteorder)
 
 
 class Bitmap:
@@ -315,6 +338,18 @@ class Bitmap:
         """Checkerboard pattern with variable square size and colours."""
         fillParameters = {"checksize": checksize, "colour1": colour1, "colour2": colour2}
         return cls(dims, fillFunc=_patternCheckerboard, fillParameters=fillParameters)
+
+    @classmethod
+    def diamonds(cls, dims, angles=(0, 90), sizes=(7, 7), colour1=(0, 0, 0), colour2=(255, 255, 255)):
+        """Checkerboard pattern with variable square size and colours."""
+        fillParameters = {"angles": angles, "sizes": sizes, "colour1": colour1, "colour2": colour2}
+        return cls(dims, fillFunc=_patternDiamonds, fillParameters=fillParameters)
+
+    @classmethod
+    def diamonds2(cls, dims, angles=(0, 90), sizes=(7, 7), colour1=(0, 0, 0), colour2=(255, 255, 255)):
+        """Checkerboard pattern with variable square size and colours."""
+        fillParameters = {"angles": angles, "sizes": sizes, "colour1": colour1, "colour2": colour2}
+        return cls(dims, fillFunc=_patternDiamonds2, fillParameters=fillParameters)
 
     @classmethod
     def gaussian(cls, dims, colour=(0, 0, 0), mus=None, sigmas=None, delta=1, terminal=255):
@@ -422,3 +457,104 @@ class Bitmap:
 
     def writeJPEG(self, filename):
         pass
+
+
+class Pixel:
+    """
+    Representation of a pixel as 24 bit RGB (for now).
+    Intent is to decouple pixel from resolution and encapsulate the colour conversions and bitwise crossover.
+    Resolution only matters when reading from an existing image or at writeBMP stage.
+    """
+
+    def __init__(self, colour=None, res=24):
+        """
+        Convert i
+
+        :param colour:
+        :param res: resolution of input colour, to allow scaling to 24 bit, if necessary
+        """
+        # self.rgb = None
+        self._paint(colour, res)
+
+    def __repr__(self):
+        return "{}(colour={})".format(self.__class__.__name__, self.rgb)
+
+    def __str__(self):
+        return self.rgb
+
+    @staticmethod
+    def _constructTupleFromNumber(value):
+        """
+        Take a single value and convert it into a 3-dimensional tone.  For YUV this would correspond to Y, while UV
+        would be zero.  For RGB assume all components are equal.
+        :param value:
+        :return:
+        """
+        return (shared.clipValue(value),) * 3
+
+    @staticmethod
+    def _validateTuple(values):
+        """
+        Construct a valid 24-bit tuple from an existing tuple.  If the tuple is longer then 3 values, assume the
+        subsequent values are irrelevant (alpha channel for instance).
+
+        If the tuple is truncated, make the assumption that non-provided values are zero.  This might be better served
+        with an exception, particularly for RGB.  With other colour models it might make sense (YUV for instance).  On
+        the other hand pseudo-random outcomes are not exactly beyond the project brief.
+
+        :param values: tuple of values, ideally (R, B, G)
+        :return: tuple of values (R, B, G)
+        """
+        return tuple([shared.clipValue(v) for v in (tuple(values) + (0, 0, 0))[:3]])
+
+    def _paint(self, colour, res=24):
+        if colour is None:
+            colour = 255  # Default is white?
+
+        if type(colour) is int or type(colour) is float:
+            colour = int(colour)
+            if res == 16:
+                colour <<= 3
+            self.rgb = self._constructTupleFromNumber(colour)
+
+        elif type(colour) is tuple or type(colour) is list:
+            self.rgb = self._validateTuple(colour)
+
+        else:  # notable omissions are 'colours' of types bytes or bytearray, which may be particularly useful.
+            msg = "Color '{}' of type '{}' not supported.".format(colour, type(colour))
+            raise TypeError(msg)
+
+    def to_bytes(self, length, byteorder):
+        """
+        Convert the internal value into bits.
+
+        :param length: 2 = 16 bit, 3 = 24 bit
+        :param byteorder: in this context: 'big' = RGB, 'little' = BGR
+        :return:
+        """
+        components = []
+
+        if byteorder not in ['little', 'big']:
+            msg = "Unrecognised byteorder: '{}'.".format(byteorder)
+            raise ValueError(msg)
+
+        if length == 2:  # 16-bit
+            if byteorder == 'little':
+                components = [x >> 3 for x in self.rgb]
+            elif byteorder == 'big':
+                components = [x >> 3 for x in self.rgb[::-1]]
+            shift = 5
+
+        elif length == 3:  # 24-bit
+            components = self.rgb[:]
+            shift = 8
+        else:
+            msg = "Unsupported byte magnitude: '{}'.".format(length)
+            raise ValueError(msg)
+
+        retVal = 0
+        for c in components:
+            retVal <<= shift
+            retVal += c
+
+        return retVal.to_bytes(length, byteorder=byteorder)

@@ -4,6 +4,7 @@ complex numbers and not use this incomplete or untested code.
 
 Whether or not I use a Vector class I'm collecting all of the vector helper functions here,
 """
+import cmath
 import math
 
 
@@ -85,6 +86,12 @@ class Vector2D(Vector):
         """
         return cmath.polar(complex(*self.coefficients[:2]))
 
+    def phaseAngle(self):
+        """
+        :return: Calculated magnitude of vector using Pythagorus.
+        """
+        return self.polar()[1]
+
 
 def unitVector(direction):
     """
@@ -98,16 +105,14 @@ def unitVector(direction):
     :param angle:
     :return: tuple of coefficients (float)
     """
-    if type(direction) is tuple or type(direction) is list:
-        length = _vectorLength(direction)
-        return [c / length for c in direction]
-    elif type(direction) is int or type(direction) is float:  # Number is angle in degrees
+    if type(direction) is int or type(direction) is float:  # Number is angle in degrees
         rad = math.radians(direction)
         return (math.cos(rad), math.sin(rad))
     elif type(direction) is complex:
         return unitVector((direction.real, direction.imag))
-    # Check iterable?: https://stackoverflow.com/questions/1952464/in-python-how-do-i-determine-if-an-object-is-iterable
-    return None
+    else:  # Treat as if iterable
+        length = _vectorLength(direction)
+        return [c / length for c in direction]
 
 
 def dotProduct(v1, v2):
