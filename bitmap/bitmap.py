@@ -1,21 +1,15 @@
+"""
+Shared helper functions
+"""
+from shared import shared
 from vector import vector
-
-
-def clipValue(value, lower=0, upper=255):
-    """
-    Limits input 'value' between minimum and maximum (inclusive) limits.
-    :param value: input
-    :param lower: lower bound
-    :param upper: upper bound
-    :return: value clipped to be within range.
-    """
-    return max(min(value, upper), lower)
+import random
 
 
 # Set of pattern functions
-def _patternBlank(dims, colour):
+def _patternBlank(dims, colour=None):
     x, y = dims
-    if not colour:
+    if colour is None:
         colour = 255  # default = white
     return [[Pixel(colour) for j in range(x)] for i in range(y)]
 
@@ -33,6 +27,55 @@ def _patternCheckerboard(dims, checksize, colour1=0, colour2=255):
     return pixels
 
 
+def _patternDiamond(dims, checksize, colour1=0, colour2=255):
+    pixels = []
+    x, y = dims
+    for j in range(y):
+        pixels.append([])
+        for i in range(x):
+            if ((i % (2 * checksize)) >= checksize) ^ ((j % (2 * checksize)) >= checksize):
+                pixels[-1].append(Pixel(colour1))
+            else:
+                pixels[-1].append(Pixel(colour2))
+    return pixels
+
+
+def _patternGaussian(dims, colour=(0, 0, 0), mus=None, sigmas=None, delta=1, terminal=255):
+    xmax, ymax = dims
+    if mus:
+        xmu, ymu = mus
+    else:
+        xmu = xmax / 2
+        ymu = ymax / 2
+
+    if sigmas:
+        xsigma, ysigma = mus
+    else:
+        xsigma = xmax / 4
+        ysigma = ymax / 4
+
+    terminal = shared.clipValue(terminal)
+
+    pixelColours = [[list(Pixel(colour).rgb) for j in range(xmax)] for i in range(ymax)]
+
+    terminalReached = not delta  # if delta == 0, don't start the loop
+    colourIndex = 0
+    while not terminalReached or colourIndex:
+        # for i in range(9000000):
+        x = round(random.gauss(xmu, xsigma))
+        y = round(random.gauss(ymu, ysigma))
+        if 0 <= x < xmax and 0 <= y < ymax:
+            newValue = shared.clipValue(pixelColours[y][x][colourIndex] + delta)
+            pixelColours[y][x][colourIndex] = newValue
+            # if (delta > 0 and channel >= terminal) or (delta < 0 and channel <= terminal):
+            if (terminal - newValue) * delta <= 0:  # newValue lies beyond the terminal
+                # print("Terminal reached, iteration({})".format(i))
+                terminalReached = True
+        colourIndex = (colourIndex + 1) % 3  # cycle through RGB
+
+    return [[Pixel(colour) for colour in row] for row in pixelColours]
+
+
 def _patternGradient(dims, angle=45, colour1=0, colour2=255):
     pixels = []
     vUnit = vector.Vector2D.unit(angle)
@@ -45,39 +88,8 @@ def _patternGradient(dims, angle=45, colour1=0, colour2=255):
         pixels.append([])
         for m in range(x):
             vPosition = vector.Vector2D([m, n]) - vOrigin
-            distanceAlongDirection = vector._dotProduct(vPosition, vUnit)
+            distanceAlongDirection = vector.dotProduct(vPosition, vUnit)
             colour = _rgbBlend(colour1, colour2, distanceAlongDirection / distanceTotal)
-            pixels[-1].append(Pixel(colour))
-    return pixels
-
-
-def _patternGradientFillHorizontal(dims, colour1=0, colour2=255):
-    pixels = []
-    x, y = dims
-
-    colourStart = Pixel(colour1).rgb
-    colourEnd = Pixel(colour2).rgb
-
-    for j in range(y):
-        pixels.append([])
-    for i in range(x):
-        colour = _rgbBlend(colourStart, colourEnd, i / x)
-        for row in pixels:
-            row.append(Pixel(colour))
-    return pixels
-
-
-def _patternGradientFillVertical(dims, colour1=0, colour2=255):
-    pixels = []
-    x, y = dims
-
-    colourStart = Pixel(colour1).rgb
-    colourEnd = Pixel(colour2).rgb
-
-    for j in range(y):
-        colour = _rgbBlend(colourStart, colourEnd, j / y)
-        pixels.append([])
-        for i in range(x):
             pixels[-1].append(Pixel(colour))
     return pixels
 
@@ -86,14 +98,14 @@ def _patternStripe(dims, stripewidth, angle=45, colour1=0, colour2=255, interpol
     pixels = []
     vUnit = vector.Vector2D.unit(angle)
     vOrigin = vector.Vector(vector.radialIntersection(dims, angle - 180))
-    print("{}: {}".format(vUnit, vOrigin))
+    # print("{}: {}".format(vUnit, vOrigin))
 
     x, y = dims
     for n in range(y):
         pixels.append([])
         for m in range(x):
             vPosition = vector.Vector2D([m, n]) - vOrigin
-            distanceAlongDirection = vector._dotProduct(vPosition, vUnit)
+            distanceAlongDirection = vector.dotProduct(vPosition, vUnit)
             moddedDistance = distanceAlongDirection % (2 * stripewidth)
             if interpolated and moddedDistance < 1:
                 c = _rgbBlend(colour2, colour1, moddedDistance)
@@ -115,7 +127,7 @@ def _rgbBlend(c1, c2, proportion):
     :param c2: colour2
     :return: blended colour
     """
-    prop = clipValue(proportion, lower=0.0, upper=1.0)
+    prop = shared.clipValue(proportion, lower=0.0, upper=1.0)
     return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
 
 
@@ -131,15 +143,15 @@ def _normaliseProportions(proportionss, count=2):
     return [p / total for p in props]
 
 
-def _rgbBlend2(cs, proportions):
-    """
-    Blend with proportion: 0.0 = pure colour1, 1.0 = pure colour2
-    :param c1: colour1
-    :param c2: colour2
-    :return: blended colour
-    """
-    prop = clipValue(proportion, lower=0.0, upper=1.0)
-    return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
+# def _rgbBlend2(cs, proportions):
+#     """
+#     Blend with proportion: 0.0 = pure colour1, 1.0 = pure colour2
+#     :param c1: colour1
+#     :param c2: colour2
+#     :return: blended colour
+#     """
+#     prop = shared.clipValue(proportion, lower=0.0, upper=1.0)
+#     return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
 
 
 class Pixel:
@@ -173,7 +185,7 @@ class Pixel:
         :param value:
         :return:
         """
-        return (clipValue(value),) * 3
+        return (shared.clipValue(value),) * 3
 
     @staticmethod
     def _validateTuple(values):
@@ -188,7 +200,7 @@ class Pixel:
         :param values: tuple of values, ideally (R, B, G)
         :return: tuple of values (R, B, G)
         """
-        return tuple([clipValue(v) for v in (tuple(values) + (0, 0, 0))[:3]])
+        return tuple([shared.clipValue(v) for v in (tuple(values) + (0, 0, 0))[:3]])
 
     def _paint(self, colour, res=24):
         if colour is None:
@@ -215,7 +227,6 @@ class Pixel:
         :param byteorder: in this context: 'big' = RGB, 'little' = BGR
         :return:
         """
-        shift = 0
         components = []
 
         if byteorder not in ['little', 'big']:
@@ -256,20 +267,22 @@ class Bitmap:
     RGB values are stored backwards i.e. BGR.
     """
 
-    def __init__(self, dims, pixels=None, fillFunc=_patternBlank, fillParameters=None):
+    def __init__(self, dims, pixels=None, fillFunc=None, fillParameters=None):
         """
-        :param dims: tuple of (x, y) dimensions in pixels
-        :param pixels: list of pixels, None for self-generated
-        :param colours:
-        :param fillFunc: function to genearate fill pattern.
+        :param dims: tuple of (x, y) dimensions in pixels.
+        :param pixels: list of pixels, None for self-generated.
+        :param fillFunc: selected function to generate fill pattern.
+        :param fillParameters: parameters for the fill function.
         """
         if pixels:
             if type(pixels[0][0]) is Pixel:
                 self.pixels = pixels
             else:
                 raise ValueError("pixels parameter requires 2D iterable of Pixels.")
+        elif fillFunc is None:
+            self.pixels = _patternBlank(dims)
         elif fillParameters is None:
-            self.pixels = fillFunc(dims, colour=255)
+            self.pixels = fillFunc(dims)
         else:
             self.pixels = fillFunc(dims, **fillParameters)
             # x, y = dims
@@ -279,21 +292,34 @@ class Bitmap:
 
     @classmethod
     def fromFile(cls, fileName):
+        """
+        Read a bitmap from file.  Not yet implemented.
+        :param fileName:
+        :return:
+        """
         # read file, and fill bitmap object from the data
         dims = None
         res = None
         pixels = None
-        return cls(dims, res, pixels)
+        return NotImplemented
+        # return cls(dims, res, pixels)
 
     @classmethod
     def blank(cls, dims, colour=(255, 255, 255)):
+        """Monotone 'pattern'."""
         fillParameters = {"colour": colour}
         return cls(dims, fillFunc=_patternBlank, fillParameters=fillParameters)
 
     @classmethod
     def checkerboard(cls, dims, checksize, colour1=(0, 0, 0), colour2=(255, 255, 255)):
+        """Checkerboard pattern with variable square size and colours."""
         fillParameters = {"checksize": checksize, "colour1": colour1, "colour2": colour2}
         return cls(dims, fillFunc=_patternCheckerboard, fillParameters=fillParameters)
+
+    @classmethod
+    def gaussian(cls, dims, colour=(0, 0, 0), mus=None, sigmas=None, delta=1, terminal=255):
+        fillParameters = {"colour": colour, "delta": delta, "mus": mus, "sigmas": sigmas, "terminal": terminal}
+        return cls(dims, fillFunc=_patternGaussian, fillParameters=fillParameters)
 
     @classmethod
     def gradient(cls, dims, angle=0, colour1=(255, 255, 255), colour2=(0, 0, 0)):
@@ -306,7 +332,8 @@ class Bitmap:
                           "stripewidth": stripewidth}
         return cls(dims, fillFunc=_patternStripe, fillParameters=fillParameters)
 
-    def createHeader(self, fileSize, reserved=0, offset=54):
+    @staticmethod
+    def createHeader(fileSize, reserved=0, offset=54):
         """
         Create a BMP header (14 bytes):
             signature - 2 bytes: "BM" in ASCII

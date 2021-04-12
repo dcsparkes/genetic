@@ -58,7 +58,7 @@ class Vector():
         if type(other) is float or type(other) is int:
             return Vector([other * c for c in self.coefficients])
         else:
-            return _dotProduct(self, other)
+            return dotProduct(self, other)
 
     __rmul__ = __mul__
 
@@ -110,7 +110,7 @@ def unitVector(direction):
     return None
 
 
-def _dotProduct(v1, v2):
+def dotProduct(v1, v2):
     """
     Dot product of two vectors is the sum of the product of the corresponding cartesian coordinates
     :param v1:
@@ -127,7 +127,7 @@ def _vectorAngle(v1, v2):
     :param v2:
     :return:
     """
-    return math.degrees(math.acos(_dotProduct(v1, v2) / (_vectorLength(v1) * _vectorLength(v2))))
+    return math.degrees(math.acos(dotProduct(v1, v2) / (_vectorLength(v1) * _vectorLength(v2))))
 
 
 def _vectorLength(v):

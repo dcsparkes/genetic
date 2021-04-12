@@ -1,3 +1,4 @@
+import shared.shared
 from bitmap import bitmap
 import unittest
 
@@ -33,16 +34,6 @@ class TestHelperFunctions(unittest.TestCase):
         blend = bitmap._rgbBlend(rgb1, rgb2, 0.5)
         self.assertEqual(tuple, type(blend), "tuple")
         self.assertEqual(int, type(blend[0]), "int")
-
-    def test_clipValue(self):
-        for i in range(-256, 512):
-            clipped = bitmap.clipValue(i)
-            if i < 0:
-                self.assertEqual(0, clipped)
-            elif i > 255:
-                self.assertEqual(255, clipped)
-            else:
-                self.assertEqual(i, clipped)
 
 
 class TestPixel(unittest.TestCase):
@@ -221,8 +212,30 @@ class TestBitmap_128x128_24_checkerboard_colours(unittest.TestCase):
         self.assertEqual(b'BM', signature)
 
 
+class TestBitmap_128x128_24_gaussian_default(unittest.TestCase):
+    filename = "test_128x128_24_gaussian_default"
+    bmp = bitmap.Bitmap.gaussian((256, 256))
+    bmp.writeBMP(filename)
+
+    def test_write_128x128_24_gaussian_default(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+
+class TestBitmap_128x128_24_gaussian_reversed(unittest.TestCase):
+    filename = "test_128x128_24_gaussian_reversed"
+    bmp = bitmap.Bitmap.gaussian((256, 256), colour=(255, 255, 255), delta=-1, terminal=0)
+    bmp.writeBMP(filename)
+
+    def test_write_128x128_24_gaussian_default(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+
 class TestBitmap_128x128_24_gradient0__default(unittest.TestCase):
-    filename = "test_128x128_24_gradient0_default"
+    filename = "test_128x128_24_gradient_0°_default"
     bmp = bitmap.Bitmap.gradient((256, 256), angle=0)
     bmp.writeBMP(filename)
 
@@ -233,7 +246,7 @@ class TestBitmap_128x128_24_gradient0__default(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient0_colours(unittest.TestCase):
-    filename = "test_128x128_24_gradient0_colours"
+    filename = "test_128x128_24_gradient_0°_colours"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=0, colour1=(11, 31, 255), colour2=(129, 128, 15))
     bmp.writeBMP(filename)
 
@@ -244,7 +257,7 @@ class TestBitmap_128x128_24_gradient0_colours(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient90__default(unittest.TestCase):
-    filename = "test_128x128_24_gradient90_default"
+    filename = "test_128x128_24_gradient_90°_default"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=90)
     bmp.writeBMP(filename)
 
@@ -255,7 +268,7 @@ class TestBitmap_128x128_24_gradient90__default(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient90_colours(unittest.TestCase):
-    filename = "test_128x128_24_gradient90_colours"
+    filename = "test_128x128_24_gradient_90°_colours"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=90, colour1=(63, 0, 64), colour2=(224, 255, 128))
     bmp.writeBMP(filename)
 
@@ -266,7 +279,7 @@ class TestBitmap_128x128_24_gradient90_colours(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient180__default(unittest.TestCase):
-    filename = "test_128x128_24_gradient180_default"
+    filename = "test_128x128_24_gradient_180°_default"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=180)
     bmp.writeBMP(filename)
 
@@ -277,7 +290,7 @@ class TestBitmap_128x128_24_gradient180__default(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient180_colours(unittest.TestCase):
-    filename = "test_128x128_24_gradient180_colours"
+    filename = "test_128x128_24_gradient_180°_colours"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=180, colour1=(255, 0, 129), colour2=(255, 255, 15))
     bmp.writeBMP(filename)
 
@@ -288,7 +301,7 @@ class TestBitmap_128x128_24_gradient180_colours(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient270__default(unittest.TestCase):
-    filename = "test_128x128_24_gradient270_default"
+    filename = "test_128x128_24_gradient_270°_default"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=270)
     bmp.writeBMP(filename)
 
@@ -299,7 +312,7 @@ class TestBitmap_128x128_24_gradient270__default(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient130__colours(unittest.TestCase):
-    filename = "test_128x128_24_gradient130_colours"
+    filename = "test_128x128_24_gradient_130°_colours"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=130, colour1=(129, 31, 133), colour2=(108, 106, 255))
     bmp.writeBMP(filename)
 
@@ -310,7 +323,7 @@ class TestBitmap_128x128_24_gradient130__colours(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient255__colours(unittest.TestCase):
-    filename = "test_128x128_24_gradient255_colours"
+    filename = "test_128x128_24_gradient_255°_colours"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=255, colour1=(0, 63, 0), colour2=(255, 190, 255))
     bmp.writeBMP(filename)
 
@@ -321,7 +334,7 @@ class TestBitmap_128x128_24_gradient255__colours(unittest.TestCase):
 
 
 class TestBitmap_128x128_24_gradient270_colours(unittest.TestCase):
-    filename = "test_128x128_24_gradient270_colours"
+    filename = "test_128x128_24_gradient_270°_colours"
     bmp = bitmap.Bitmap.gradient((128, 128), angle=270, colour1=(221, 31, 192), colour2=(7, 96, 7))
     bmp.writeBMP(filename)
 
@@ -342,9 +355,20 @@ class TestBitmap_128x128_24_stripes_default(unittest.TestCase):
         self.assertEqual(b'BM', signature)
 
 
-class TestBitmap_128x128_24_stripes30_colours(unittest.TestCase):
-    filename = "test_128x128_24_stripes30_colours"
-    bmp = bitmap.Bitmap.stripes((128, 128), angle=30, colour1=(221, 237, 192), colour2=(7, 96, 7))
+class TestBitmap_128x128_24_stripes9_30_colours(unittest.TestCase):
+    filename = "test_128x128_24_stripes_9_30°_colours"
+    bmp = bitmap.Bitmap.stripes((128, 128), stripewidth=9, angle=30, colour1=(221, 237, 192), colour2=(7, 96, 7))
+    bmp.writeBMP(filename)
+
+    def test_write_128x128_24_blue_identifier(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+
+class TestBitmap_128x128_24_stripes14_100_colours(unittest.TestCase):
+    filename = "test_128x128_24_stripes_14_100°_colours"
+    bmp = bitmap.Bitmap.stripes((128, 128), stripewidth=14, angle=100, colour1=(221, 237, 7), colour2=(7, 96, 192))
     bmp.writeBMP(filename)
 
     def test_write_128x128_24_blue_identifier(self):
