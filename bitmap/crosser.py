@@ -15,6 +15,78 @@ from bitmap import bitmap
 import random
 
 
+def _breedMonogamousRandom(currentGen, setcount=None, setsize=2):
+    """
+    From a generation randomly select monogamous partnerships.
+
+    :param currentGen:  A list of Bitmap objects
+    :param setcount:    Total number of 'pairings'
+    :param setsize:     How big is a breeding 'couple'?
+
+    :return: breeding 'pairs' as tuples.
+    """
+    if setcount is None:
+        iters = len(currentGen) // setsize
+    else:
+        iters = min(setcount, len(currentGen) // setsize)
+
+    random.shuffle(currentGen)
+    for i in range(iters):  # purely luck
+        yield tuple(currentGen[:setsize])
+        currentGen = currentGen[setsize:]
+
+
+
+class Breeder:
+    def __init__(self, breedPatternFunc, breedPatternParams=None, dims=None, genSize=10, gen0=None):
+        if gen0:
+            self.currentGen = gen0
+            self.dims = gen0[0].dims
+
+        else:
+            self.currentGen = []
+            self.dims = dims
+            for i in range(genSize):
+                self.currentGen.append(bitmap.Bitmap.arbitrary(dims))
+
+        self.breedPatternFunc = breedPatternFunc
+        self.breedPatternParams = breedPatternParams
+
+    def __iter__(self):
+        yield self.currentGen
+        while (True):
+            genNext = []
+            for pair in self.breedPatternFunc(self.currentGen, **self.breedPatternParams):
+                fit = FullImageTranscriber.multiple(*pair, crossoverChance = random.randint(1, 7) / (540 ** 2))  # ~1-7 crossovers per pair
+                genNext.extend(fit.transcribe())
+            yield genNext
+            genNext.extend(random.sample(self.currentGen, 2))  # select images from previous generation
+            genNext.append(bitmap.Bitmap.arbitrary(self.dims))
+            self.currentGen = genNext
+
+
+    @classmethod
+    def firstSet(cls, dims=(540, 540)):
+        gs = bitmap.GaussianStore(dims)
+        gen0 = [
+            bitmap.Bitmap.diamonds(dims, sizes=(16, 16), angles=(10, 70),
+                                   colour1=(218, 205, 255), colour2=(96, 15, 96)),
+            bitmap.Bitmap.stripes(dims, random.randint(13, 63), random.randint(7, 15), (255, 255, 128), (96, 0, 8)),
+            bitmap.Bitmap.checkerboard(dims, 54, (224, 255, 255), (31, 0, 0)),
+            bitmap.Bitmap.stripes(dims, 71, 23.4, (255, 224, 255), (0, 15, 0)),
+            bitmap.Bitmap.checkerboard(dims, 45, (224, 255, 224), (0, 48, 0)),
+            gs.get(dims, 0),
+            bitmap.Bitmap.gradient(dims, angle=-25, colour1=(108, 31, 133), colour2=(129, 106, 255)),
+            gs.get(dims, 1),
+            bitmap.Bitmap.stripes(dims, stripewidth=14, angle=100, colour1=(221, 237, 7), colour2=(7, 96, 192)),
+            bitmap.Bitmap.gradient(dims, angle=random.randint(-19, 17),
+                                   colour1=(random.randint(96, 158), random.randint(0, 140), random.randint(128, 255)),
+                                   colour2=(random.randint(0, 95), random.randint(128, 255), random.randint(0, 101)))
+        ]
+        return cls(breedPatternFunc=_breedMonogamousRandom, breedPatternParams={"setcount":5},
+                   dims=dims, gen0=gen0, genSize=10)
+
+
 class FullImageTranscriber:
     """
     Transcribe the complete image with some crossover and mutations.
@@ -43,6 +115,17 @@ class FullImageTranscriber:
             rows.append(row)
             pixels = pixels[rowLen:]
         return rows
+
+    @staticmethod
+    def _listMutationReverse(self, pixels):
+        """Transcription mutation that reverses the list."""
+        return list(pixels.reversed())
+
+    @staticmethod
+    def _listMutationRotate(self, pixels, rotation=None):
+        """Transcription mutation that bytewise rotates the list."""
+        cutoff = random.randint(1, len(pixels) - 2)
+        return pixels[cutoff:] + pixels[:cutoff]
 
     def transcribe(self):
         """Include possible mutations as dict/tuple with funcs and concomitant probabilities?"""

@@ -255,18 +255,6 @@ def _rgbBlend(c1, c2, proportion):
     return tuple([round(a * (1 - prop) + b * prop) for a, b in zip(c1, c2)])
 
 
-def _normaliseProportions(proportionss, count=2):
-    props = tuple(proportionss[:count])
-    total = sum(props)
-    icount = len(props)
-    if count > icount:
-        remainder = max(0, (1 - total) / (count - icount))
-        props = tuple(props) + (remainder,) * (count - icount)
-        total = sum(props)  # recalculate total, should be >= 1
-
-    return [p / total for p in props]
-
-
 # def _rgbBlend2(cs, proportions):
 #     """
 #     Blend with proportion: 0.0 = pure colour1, 1.0 = pure colour2
@@ -326,6 +314,41 @@ class Bitmap:
         pixels = None
         return NotImplemented
         # return cls(dims, res, pixels)
+
+    @classmethod
+    def arbitrary(cls, dims):
+        """Arbitrary pattern selected from implemented patterns."""
+        choice = random.randint(0, 9)
+        colour1 = []
+        colour2 = []
+        for i in range(3):
+            channel1 = random.randint(0, 255)
+            channel2 = (channel1 + random.randint(16, 240)) % 256
+            colour1.append(channel1)
+            colour2.append(channel2)
+        colour1 = tuple(colour1)
+        colour2 = tuple(colour2)
+        print("Arbitrary Pattern ({}): {}; {}.".format(choice, colour1, colour2))
+        if choice <= 1:
+            gs = GaussianStore()
+            return gs.get(dims, index=choice)
+
+        elif choice <= 3:
+            angle1 = random.randint(0, 89)
+            angle2 = angle1 + random.randint(15, 104)
+            return cls.diamonds(dims, sizes=(random.randint(3, dims[0] // 2), random.randint(3, dims[1] // 2)),
+                                angles=(angle1, angle2), colour1=colour1, colour2=colour2)
+        elif choice <= 6:
+            maxstripewidth = min(dims) // 3
+            return cls.stripes(dims, angle=random.randint(-87, 83), stripewidth=random.randint(5, maxstripewidth),
+                               colour1=colour1, colour2=colour2)
+        elif choice <= 8:
+            maxchecksize = min(dims) // 2
+            return cls.checkerboard(dims, random.randint(12, maxchecksize), colour1, colour2)
+        elif choice <= 9:
+            return cls.gradient(dims, angle=random.randint(-47, 43), colour1=colour1, colour2=colour2)
+        else:  # This should be purely precautionary
+            return cls.blank(dims, colour=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
 
     @classmethod
     def blank(cls, dims, colour=(255, 255, 255)):
@@ -408,7 +431,12 @@ class Bitmap:
         Colors Used - 4 bytes   Number of actually used colors. For a 8-bit / pixel bitmap this will be 100h or 256.
         Important Colors	4 bytes	0032h	Number of important colors: 0 = all
 
-        :return: valid header in bytes.
+        :param res: resolution defined when image is written
+        :param offset: magic number for header offest.  For BMPs without compression or colour tables this is 54.
+        :param ppm: Pixels per meter... not used so just picked an arbitrary default value.
+        :return: BMP info header as bytes.
+
+        :return: valid header as bytes.
         """
 
         header = (40).to_bytes(4, byteorder='little')  # size
@@ -427,10 +455,11 @@ class Bitmap:
 
     def writeBMP(self, filename, res=24):
         """
+        Write the bitmap as a BMP bitmap.
         Each scan line is zero padded to the nearest 4-byte boundary. If the image has a width that is not divisible by
         four, say, 21 bytes, there would be 3 bytes of padding at the end of every scan line.
 
-        :return:
+        :return: None
         """
 
         if res not in [16, 24]:
@@ -439,13 +468,13 @@ class Bitmap:
 
         lineBytes = (self.dims[0] * res) // 8  # line size = pixels * bits per pixel
         paddingSize = -lineBytes % 4
+        paddingBytes = (0).to_bytes(1, 'little') * paddingSize  # # Pad to multiple of 4 bytes
+
         imageStorageSize = (lineBytes + paddingSize) * self.dims[1]  # Storage size = line size (bytes) * no. of lines
         headerSize = 14 + 40
         fileSize = headerSize + imageStorageSize
         fileHeader = self.createHeader(fileSize)
         infoHeader = self.createInfoHeader(res)
-
-        paddingBytes = (0).to_bytes(1, 'little') * paddingSize
 
         with open('{}.bmp'.format(filename), 'wb') as bmp:
             bmp.write(fileHeader)
@@ -464,6 +493,8 @@ class Pixel:
     Representation of a pixel as 24 bit RGB (for now).
     Intent is to decouple pixel from resolution and encapsulate the colour conversions and bitwise crossover.
     Resolution only matters when reading from an existing image or at writeBMP stage.
+
+    Currently supports only 16-bit or 24-bit output.
     """
 
     def __init__(self, colour=None, res=24):
@@ -558,3 +589,29 @@ class Pixel:
             retVal += c
 
         return retVal.to_bytes(length, byteorder=byteorder)
+
+
+class GaussianStore:
+    """
+    Cache gaussians to minimise generation time if reused.
+    """
+    gaussians = [None, None]
+    dims = None
+
+    def __index__(self, index):
+        return self.get(self.dims, index)
+
+    def __init__(self, dims=None):
+        if dims:
+            self.dims = dims
+
+    def get(self, dims, index):
+        if 0 <= index <= 1:
+            if self.gaussians[index] is None:
+                if index == 0:
+                    self.gaussians[index] = Bitmap.gaussian(dims, colour=(0, 0, 11), delta=3, terminal=254)
+                elif index == 1:
+                    self.gaussians[index] = Bitmap.gaussian(dims, colour=(255, 255, 244), delta=-3, terminal=2)
+            return self.gaussians[index]
+        else:
+            raise ValueError()

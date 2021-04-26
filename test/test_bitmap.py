@@ -396,7 +396,20 @@ class TestBitmap_128x128_24_stripes14_100_colours(unittest.TestCase):
     bmp = bitmap.Bitmap.stripes((128, 128), stripewidth=14, angle=100, colour1=(221, 237, 7), colour2=(7, 96, 192))
     bmp.writeBMP(filename)
 
-    def test_write_128x128_24_blue_identifier(self):
+    def test_write_128x128_24_stripes14_100_colours(self):
+        with open('{}.bmp'.format(self.filename), 'rb') as bmp:
+            signature = bmp.read(2)
+        self.assertEqual(b'BM', signature)
+
+
+class TestBitmap_128x128_24_arbitrary(unittest.TestCase):
+
+    for i in range(10):
+        filename = "{}test_128x128_24_arbitrary_{}".format(dir, i)
+        bmp = bitmap.Bitmap.arbitrary((128, 128))
+        bmp.writeBMP(filename)
+
+    def test_write_128x128_24_arbitrary(self):
         with open('{}.bmp'.format(self.filename), 'rb') as bmp:
             signature = bmp.read(2)
         self.assertEqual(b'BM', signature)
