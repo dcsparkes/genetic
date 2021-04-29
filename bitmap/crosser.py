@@ -36,9 +36,9 @@ def _breedMonogamousRandom(currentGen, setcount=None, setsize=2):
         currentGen = currentGen[setsize:]
 
 
-
 class Breeder:
-    def __init__(self, breedPatternFunc, breedPatternParams=None, dims=None, genSize=10, gen0=None):
+    def __init__(self, breedPatternFunc=_breedMonogamousRandom, breedPatternParams={"setcount": 5}, dims=None,
+                 genSize=10, gen0=None):
         if gen0:
             self.currentGen = gen0
             self.dims = gen0[0].dims
@@ -51,19 +51,6 @@ class Breeder:
 
         self.breedPatternFunc = breedPatternFunc
         self.breedPatternParams = breedPatternParams
-
-    def __iter__(self):
-        yield self.currentGen
-        while (True):
-            genNext = []
-            for pair in self.breedPatternFunc(self.currentGen, **self.breedPatternParams):
-                fit = FullImageTranscriber.multiple(*pair, crossoverChance = random.randint(1, 7) / (540 ** 2))  # ~1-7 crossovers per pair
-                genNext.extend(fit.transcribe())
-            yield genNext
-            genNext.extend(random.sample(self.currentGen, 2))  # select images from previous generation
-            genNext.append(bitmap.Bitmap.arbitrary(self.dims))
-            self.currentGen = genNext
-
 
     @classmethod
     def firstSet(cls, dims=(540, 540)):
@@ -83,8 +70,23 @@ class Breeder:
                                    colour1=(random.randint(96, 158), random.randint(0, 140), random.randint(128, 255)),
                                    colour2=(random.randint(0, 95), random.randint(128, 255), random.randint(0, 101)))
         ]
-        return cls(breedPatternFunc=_breedMonogamousRandom, breedPatternParams={"setcount":5},
+        return cls(breedPatternFunc=_breedMonogamousRandom, breedPatternParams={"setcount": 5},
                    dims=dims, gen0=gen0, genSize=10)
+
+
+class CrosserMonogamous(Breeder):
+    def __iter__(self):
+        yield self.currentGen
+        while (True):
+            genNext = []
+            for pair in self.breedPatternFunc(self.currentGen, **self.breedPatternParams):
+                fit = FullImageTranscriber.multiple(*pair, crossoverChance=random.randint(1, 7) / (
+                        540 ** 2))  # ~1-7 crossovers per pair
+                genNext.extend(fit.transcribe())
+            yield genNext
+            genNext.extend(random.sample(self.currentGen, 2))  # select images from previous generation
+            genNext.append(bitmap.Bitmap.arbitrary(self.dims))
+            self.currentGen = genNext
 
 
 class FullImageTranscriber:

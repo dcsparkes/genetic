@@ -11,7 +11,7 @@ import random
 def main():
     dims = (540, 540)
     print("Generating generation 0")
-    breeder = crosser.Breeder.firstSet(dims)
+    breeder = crosser.CrosserMonogamous(dims=dims)
 
     now = datetime.datetime.now()
     folder = now.strftime("generations\%Y%m%d_%H%M%S")
@@ -26,7 +26,7 @@ def main():
             print("{}, ".format(count), end='')
             bmp.writeBMP("{}\gen{}_{}".format(folder, genID, count))
         genID += 1
-        if genID > 11:
+        if genID > 23:
             break
 
     # for genID in range(1, 12):  # 10 images per row, 6 rows per contact sheet
