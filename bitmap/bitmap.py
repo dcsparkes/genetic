@@ -2,6 +2,7 @@
 Shared helper functions
 """
 from shared import shared
+from shared.shared import _diamondSizes, _diamondVectors
 from vector import vector
 import random
 
@@ -27,54 +28,10 @@ def _patternCheckerboard(dims, checksize, colour1=0, colour2=255):
     return pixels
 
 
-def _diamondSizes(sizeInfo):
-    """
-    Calculate the sizes for the tessellated parallelogram pattern.  Default to equidistant if second size is not
-    provided.
-
-    :param sizeInfo: size information
-    :return: tuple pair of sizes.
-    """
-    sizes = []
-
-    if type(sizeInfo) is int or type(sizeInfo) is float:
-        sizes.append(sizeInfo)
-    elif sizeInfo is not None:
-        sizes = sizeInfo[:2]
-
-    if not len(sizes):
-        sizes.append(7)  # arbitrary magic number
-    if len(sizes) == 1:
-        sizes.append(sizes[0])
-    return sizes
-
-
-def _diamondVectors(angleInfo):
-    """
-    Calculate the unit vectors for the tessellated parallelogram pattern.  Default to orthogonal if second angle is not
-    provided.
-
-    :param angleInfo: angle information
-    :return: tuple pair of 2D Vectors.
-    """
-    angs = []
-
-    if type(angleInfo) is int or type(angleInfo) is float:
-        angs.append(angleInfo)
-    elif angleInfo is not None:
-        angs = angleInfo[:2]
-
-    if not len(angs):
-        angs.append(0)
-    if len(angs) == 1:
-        angs.append(angs[0] + 90)
-    return [vector.Vector2D.unit(a) for a in angs]
-
-
 def _patternDiamonds(dims, angles=None, sizes=None, colour1=(0, 0, 0), colour2=(255, 255, 255)):
     pixels = []
-    vUnitH, vUnitV = _diamondVectors(angles)
-    sizeH, sizeV = _diamondSizes(sizes)
+    vUnitH, vUnitV = shared._diamondVectors(angles)
+    sizeH, sizeV = shared._diamondSizes(sizes)
     vOrigin = vector.Vector(vector.radialIntersection(dims, vUnitH.phaseAngle()))
 
     x, y = dims
