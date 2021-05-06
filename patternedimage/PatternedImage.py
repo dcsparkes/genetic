@@ -287,7 +287,7 @@ def _generate2DGaussianDistribution(dims, mus=None, sigmas=None, deltaCount=100)
                 distribution.
     :param sigmas: Standard deviation of the distribution - essentially the width of the 'dot'.
     :param deltaCount:  No of steps.
-    :return: A list of lists of normalised
+    :return: A list of lists of normalised probability values conforming to the distribution.
     """
     xmax, ymax = dims
     if mus:
