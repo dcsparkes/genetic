@@ -1,5 +1,5 @@
 """
-Experiment to use Pillow to create JPEGS
+Use Pillow to create PNGs that 'match' the original transcription errors of the Bitmap object
 """
 import datetime
 import os
@@ -10,12 +10,7 @@ from patternedimage import PatternedImage
 from shared import shared
 
 if __name__ == '__main__':
-    dims = (1080, 1080)
-    dpis = [2880 // i for i in [1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16]]
-    print(dpis)
-    # img = PatternedImage.new(PatternedImage.diamonds, dims=dims, colours=[(209, 123, 193), (123, 193, 209), (12, 19, 29)])
-    # img = PatternedImage.new(PatternedImage.stripedMulti, dims=dims, colours=shared.randomRGBContrasting(5))
-    # img = PatternedImage.new(PatternedImage.diamonds, dims=dims, colours=shared.randomRGBPair())
+    dims = (1440, 1440)
 
     currentGen = [PatternedImage.new(dims=dims) for i in range(10)]
 
@@ -36,10 +31,6 @@ if __name__ == '__main__':
         random.shuffle(currentGen)
         nextGen = []
         for i in range(len(currentGen) // 2):
-            nextGen.extend(ImageCrosser.crossTesselated([currentGen[2 * i], currentGen[2 * i + 1]],
-                                                        counts=(random.randint(2, 5), random.randint(2, 5))))
+            nextGen.extend(ImageCrosser.crossWholeArea([currentGen[2 * i], currentGen[2 * i + 1]],
+                                                       mutations=[ImageCrosser.mutationTranscription]))
         currentGen = nextGen
-
-    for d in dpis:
-        for img in currentGen:
-            img.save("{}\gen{}_{}_{}dpi.jpg".format(folder, genID, count, d), dpi=(d, d))

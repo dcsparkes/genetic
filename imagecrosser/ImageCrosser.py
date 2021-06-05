@@ -13,11 +13,8 @@ Ultimately a set of tessera can encapsulate each of these scopes.  For 1 & 2 thi
 number.
 """
 
+import math
 import random
-
-
-def cross(images):
-    pass
 
 
 def crossSubImage(images):
@@ -38,6 +35,17 @@ def crossTesselated(images, counts=(3, 3)):
             region1 = pair[1].crop(area)
             pair[0].paste(region1, box=area)
             pair[1].paste(region0, box=area)
+    return pair
+
+
+def crossWholeArea(images, mutations=[]):
+    pair = [img.copy() for img in images[:2]]
+    for area in wholeArea(images):
+        regions = [img.crop(area) for img in pair]
+        for mutation in mutations:
+            regions = mutation(regions)
+        pair[0].paste(regions[0], box=area)
+        pair[1].paste(regions[1], box=area)
     return pair
 
 
@@ -64,3 +72,58 @@ def tessellatedAreas(images, counts):
 
 def wholeArea(images):
     yield [0, 0, *calculateOverlap(images)]
+
+
+def _calculateTranscriptionAreas():
+    pass
+
+
+def mutationRandomSwap(regions):
+    random.shuffle(regions)
+    return regions
+
+
+def mutationTranscription(regions, crosses=None):
+    # print(regions)
+    width, height = regions[0].size
+    pixelCount = width * height
+
+    if crosses is None:
+        crossoverChance = random.randint(1, 7) / pixelCount
+    else:
+        crossoverChance = crosses / pixelCount
+
+    pair = [img.copy() for img in regions[:2]]
+
+    crossoverPositions = []
+    for i in range(pixelCount):
+        if random.random() < crossoverChance:
+            crossoverPositions.append((i, i // width, i % width))
+    crossoverPositions.append((pixelCount, height - 1, width - 1))
+
+    # print(crossoverPositions)
+    for i in range(len(crossoverPositions) // 2):
+        (iStart, rowStart, colStart), (iEnd, rowEnd, colEnd) = crossoverPositions[:2]
+        del crossoverPositions[:2]
+
+        if rowStart == rowEnd:
+            areas = [(colStart, rowStart, colEnd, rowEnd)]
+        elif rowStart == rowEnd - 1:
+            areas = [(colStart, rowStart, width, rowStart),
+                     (0, rowEnd, colEnd, rowEnd)
+                     ]
+        else:
+            areas = [(colStart, rowStart, width, rowStart),
+                     (0, rowStart + 1, width, rowEnd - 1),
+                     (0, rowEnd, colEnd, rowEnd)
+                     ]
+
+        # print (areas)
+        for area in areas:
+            # print(area)
+            cut0 = pair[0].crop(area)
+            cut1 = pair[1].crop(area)
+            pair[0].paste(cut1, box=area)
+            pair[1].paste(cut0, box=area)
+
+    return pair
